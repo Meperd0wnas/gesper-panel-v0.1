@@ -21,4 +21,5 @@ Thumbs.db
 # No deben ser públicos. Se conservan localmente pero no se versionan.
 docs/*
 !docs/DECISIONES.md
+!docs/ARQUITECTURA_MVP.md
 CASO_Bucaramanga_plantilla_v2.5.xlsm

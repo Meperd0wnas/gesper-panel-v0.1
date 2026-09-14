@@ -123,6 +123,7 @@ gesper-panel-v0.1/
 - **`docs/03 - Diagrama de Arquitectura.html`** — diagrama interactivo (Mermaid) de las 47 hojas, sus dependencias y los 5 ciclos de retroalimentación del modelo. Ábrelo en un navegador.
 - **`docs/GESPER_Inventario_Entradas.xlsx`** — inventario de celdas de entrada del modelo.
 - **`docs/DECISIONES.md`** — decisiones técnicas de este Add-in y su porqué.
+- **`docs/ARQUITECTURA_MVP.md`** — diseño de la arquitectura del MVP (componentes, servicios, pantallas y contratos de datos) para las funcionalidades P0, previo a implementarlas.
 
 Si encuentras una contradicción entre estos documentos, la Especificación Técnica es v2.0 y el Documento de Arquitectura es v3.0 (agosto 2026) — el segundo es la fuente más reciente.
 
