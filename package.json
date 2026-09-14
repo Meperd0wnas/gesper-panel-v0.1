@@ -1,0 +1,16 @@
+{
+  "name": "gesper-panel",
+  "version": "0.1.0",
+  "description": "Panel GESPER — complemento de Excel para el modelo de gestion de perdidas de agua",
+  "private": true,
+  "scripts": {
+    "certificados": "office-addin-dev-certs install",
+    "start": "node server.js",
+    "instalar-en-excel": "office-addin-debugging start manifest.xml desktop --app excel",
+    "quitar-de-excel": "office-addin-debugging stop manifest.xml"
+  },
+  "devDependencies": {
+    "office-addin-debugging": "^6.0.0",
+    "office-addin-dev-certs": "^2.0.0"
+  }
+}
