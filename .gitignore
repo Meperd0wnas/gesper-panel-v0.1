@@ -15,3 +15,10 @@ Thumbs.db
 # Editor
 .vscode/*
 !.vscode/extensions.json
+
+# Documentación y datos del modelo GESPER: describen metodología de negocio,
+# arquitectura interna y, en el caso de Bucaramanga, datos de un cliente real.
+# No deben ser públicos. Se conservan localmente pero no se versionan.
+docs/*
+!docs/DECISIONES.md
+CASO_Bucaramanga_plantilla_v2.5.xlsm
