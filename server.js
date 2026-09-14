@@ -9,10 +9,13 @@
  * Uso:   node server.js
  */
 
-const https = require("https");
-const fs = require("fs");
-const path = require("path");
-const os = require("os");
+import https from "https";
+import fs from "fs";
+import path from "path";
+import os from "os";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const PORT = 3000;
 const ROOT = __dirname;
@@ -41,7 +44,7 @@ function fallbackCerts() {
 
 async function getCerts() {
   try {
-    const devCerts = require("office-addin-dev-certs");
+    const devCerts = await import("office-addin-dev-certs");
     const o = await devCerts.getHttpsServerOptions();
     return { key: o.key, cert: o.cert, ca: o.ca };
   } catch (e) {

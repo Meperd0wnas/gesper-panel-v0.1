@@ -1,0 +1,17 @@
+# Dependencias
+node_modules/
+
+# Certificados de desarrollo (se instalan localmente con office-addin-dev-certs;
+# nunca deben viajar en el repositorio)
+*.pem
+*.key
+*.crt
+
+# Logs y temporales del sistema
+*.log
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
