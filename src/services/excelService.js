@@ -63,20 +63,72 @@ export async function leerLibro(lecturas) {
 
 /**
  * Escribe valores en un rango, pero nunca sobre una celda que contenga una
- * fórmula: antes de escribir, lee Range.formulas y aborta si encuentra alguna.
- * Es la única función del panel con permiso de escritura sobre el modelo.
+ * fórmula. Es la única función del panel con permiso de escritura sobre el
+ * modelo. Delega en escribirCampos (una sola entrada) para no duplicar la
+ * guarda anti-fórmula ni el recálculo en dos sitios distintos.
  */
 export async function escribirRango(hoja, addr, valores) {
+  await escribirCampos([{ hoja, direccion: addr, valores }]);
+}
+
+/**
+ * Escribe varios campos (posiblemente en distintas hojas) en una sola
+ * ejecución de Excel.run, con un único recálculo completo al final en vez de
+ * uno por campo.
+ *
+ * Por qué existe (ver docs/ARQUITECTURA_MVP.md §3.3): escribir N campos con
+ * escribirRango dispara N recálculos completos de un libro con más de
+ * 105.000 fórmulas. escribirCampos agrupa las escrituras de un mismo
+ * guardado (p. ej. un formulario de programa) en un solo recálculo.
+ *
+ * Garantías que conserva de escribirRango:
+ *  - ninguna celda con fórmula se sobrescribe (misma guarda hasFormula);
+ *  - si CUALQUIER entrada del lote apunta a una celda con fórmula, no se
+ *    escribe NINGUNA del lote (todo o nada): las fórmulas de todos los
+ *    rangos se leen y se validan antes de asignar ningún valor.
+ *
+ * @param {Array<{hoja: string, direccion: string, valores: any[][]}>} entries
+ *   `valores` sigue la misma forma que espera Range.values (matriz 2D),
+ *   igual que el parámetro `valores` de escribirRango — así una entrada
+ *   puede ser tanto una celda suelta ([[12.5]]) como una fila de una serie
+ *   anual ([[21377, 22576, 15784, 25736, 31539]]).
+ */
+export async function escribirCampos(entries) {
+  if (!Array.isArray(entries) || entries.length === 0) {
+    throw new Error("escribirCampos necesita al menos una entrada.");
+  }
+  entries.forEach((entry, i) => {
+    if (!entry || typeof entry.hoja !== "string" || !entry.hoja) {
+      throw new Error("La entrada " + i + " de escribirCampos no tiene una hoja válida.");
+    }
+    if (typeof entry.direccion !== "string" || !entry.direccion) {
+      throw new Error("La entrada " + i + " de escribirCampos (" + entry.hoja + ") no tiene una dirección válida.");
+    }
+    if (!Array.isArray(entry.valores)) {
+      throw new Error(
+        "La entrada " + i + " de escribirCampos (" + entry.hoja + "!" + entry.direccion +
+        ") debe traer 'valores' como una matriz, igual que Range.values."
+      );
+    }
+  });
+
   await Excel.run(async (ctx) => {
-    const sh = ctx.workbook.worksheets.getItem(hoja);
-    const rg = sh.getRange(addr);
-    rg.load("formulas,address");
+    const rangos = entries.map((entry) => {
+      const rg = ctx.workbook.worksheets.getItem(entry.hoja).getRange(entry.direccion);
+      rg.load("formulas,address");
+      return rg;
+    });
     await ctx.sync();
 
-    if (hasFormula(rg.formulas)) {
-      throw new Error("La celda " + rg.address + " contiene una fórmula. El panel no la sobrescribe.");
-    }
-    rg.values = valores;
+    // Se valida el lote completo antes de escribir nada: si una sola entrada
+    // tiene fórmula, ninguna de las demás se escribe tampoco.
+    rangos.forEach((rg) => {
+      if (hasFormula(rg.formulas)) {
+        throw new Error("La celda " + rg.address + " contiene una fórmula. El panel no la sobrescribe.");
+      }
+    });
+
+    rangos.forEach((rg, i) => { rg.values = entries[i].valores; });
     ctx.workbook.application.calculate(Excel.CalculationType.full);
     await ctx.sync();
   });
