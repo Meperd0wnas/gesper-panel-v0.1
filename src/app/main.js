@@ -3,15 +3,16 @@
  * capa de Excel (services/excelService.js) y el renderizado (render.js).
  */
 
-import { H, LECTURAS, ANCLAS } from "../config/cellMap.js";
+import { H, ANCLAS } from "../config/cellMap.js";
 import { parseNum } from "../utils/format.js";
 import { state } from "./state.js";
 import {
   pintaTodo, pintaDatos, pintaFormP9, pintaResultados, pintaResultadoDiag, errBox
 } from "./render.js";
 import {
-  leerLibro, escribirRango, irA as excelIrA, buscarFilaPorEtiqueta, ejecutarDiagnostico
+  escribirRango, irA as excelIrA, buscarFilaPorEtiqueta, ejecutarDiagnostico
 } from "../services/excelService.js";
+import { cargarModelo } from "../domain/repositories/modeloRepository.js";
 
 function $(id) { return document.getElementById(id); }
 function foot(msg, cls) { var f = $("foot"); f.textContent = msg; f.className = cls || ""; }
@@ -21,9 +22,11 @@ async function refrescar() {
   if (btn) btn.classList.add("spin");
   try {
     foot("Leyendo el libro…");
-    var { hojasLibro, datos } = await leerLibro(LECTURAS);
-    state.hojasLibro = hojasLibro;
-    state.D = datos;
+    var modelo = await cargarModelo();
+    state.hojasLibro = modelo.hojasLibro;
+    state.estado = modelo.estado;
+    state.totalProgramas = modelo.programas.length;
+    state.D = modelo.raw; // puente temporal -- ver informe de la Fase 2C
     pintaTodo();
     foot("Leído · " + state.hojasLibro.length + " hojas · " + new Date().toLocaleTimeString("es-CO"), "ok");
   } catch (e) {

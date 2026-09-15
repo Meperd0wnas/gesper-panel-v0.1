@@ -52,73 +52,64 @@ export function programas() {
 }
 
 /* ---------- PANTALLA: ESTADO ---------- */
+/**
+ * Consume el EstadoModelo ya mapeado (domain/mappers/estadoMapper.js), no el
+ * raw de Excel -- ver docs/ARQUITECTURA_MVP.md §2/§4. `state.totalProgramas`
+ * viaja por fuera del contrato EstadoModelo porque este no incluye el total
+ * de programas, solo `programasSinDatos` (ver informe de la Fase 2C:
+ * "requiere ajuste del contrato").
+ */
 export function pintaEstado() {
-  var D = state.D;
-  var P = programas();
-  var sinDatos = P.filter(function (p) { return p.bc === 0 && !p.nota; });
-  var ct = D.ct005 ? D.ct005.t.map(function (r) { return String(r[0] || ""); }) : [];
-  var ctOK = ct.length === 3 && ct.every(function (x) { return x.indexOf("OK") >= 0; });
-  var motorSin = ct.length > 2 && String(ct[2]).indexOf("SIN EJECUTAR") >= 0;
-
-  var e8 = D.parE ? num(D.parE.v[0][0]) : null;
-  var wacc = D.par ? num(D.par.v[4][0]) : null;   // C8 es la 5.ª celda de C4:C18
-  var ipc = D.par ? num(D.par.v[5][0]) : null;   // C9
-
-  // ¿La vista coincide con lo que alimenta el consolidado?
-  var desfase = false;
-  if (D.flagsV && D.flags2) {
-    var a = D.flagsV.t[0].map(function (x) { return String(x || "").trim().toUpperCase(); });
-    var b = D.flags2.t[0].map(function (x) { return String(x || "").trim().toUpperCase(); });
-    for (var i = 0; i < Math.max(a.length, b.length); i++) { if ((a[i] || "") !== (b[i] || "")) { desfase = true; break; } }
-  }
-
-  var empresa = D.empresa ? String(D.empresa.t[0][0] || "").trim() : "";
-  var anios = D.anios ? D.anios.t[0].filter(function (x) { return String(x || "").trim(); }) : [];
-  var meta = D.meta ? num(D.meta.v[0][0]) : null;
-  var metodo = D.metodo ? String(D.metodo.t[0][0] || "").trim() : "";
+  var estado = state.estado;
+  if (!estado) { $("s-estado").innerHTML = errBox("Todavía no se ha leído el libro."); return; }
 
   var h = "";
-  h += '<div class="idc"><div class="co">' + esc(empresa || "Caso sin identificar") + '</div><div class="mt">';
-  if (anios.length) h += "Horizonte " + esc(anios[0]) + " – " + esc(anios[anios.length - 1]) + " · " + anios.length + " años<br>";
-  if (metodo) h += "Proyección de usuarios: " + esc(metodo) + "<br>";
-  if (meta !== null) h += "Meta IPUF de la empresa: " + fmt(meta, 1) + " m³/susc·mes<br>";
+  h += '<div class="idc"><div class="co">' + esc(estado.empresa || "Caso sin identificar") + '</div><div class="mt">';
+  if (estado.horizonte) {
+    h += "Horizonte " + esc(estado.horizonte.inicio) + " – " + esc(estado.horizonte.fin) + " · " +
+      estado.horizonte.cantidadAnios + " años<br>";
+  }
+  if (estado.metodoProyeccionUsuarios) h += "Proyección de usuarios: " + esc(estado.metodoProyeccionUsuarios) + "<br>";
+  if (estado.metaIPUF !== null) h += "Meta IPUF de la empresa: " + fmt(estado.metaIPUF, 1) + " m³/susc·mes<br>";
   h += "Máximo por norma: 6,0 (Res. 330/2017 art. 9)";
   h += "</div></div>";
 
   h += '<div class="sec">Estado del modelo</div>';
 
   // 1. Integridad
-  if (ctOK) {
+  var ctTexto = esc(estado.controlesIntegridad.join(" · "));
+  if (estado.integridad === "ok") {
     h += sig("k", "Integridad del modelo", "Los tres controles internos en verde. <code>Alternativas!X26:Y29</code>");
-  } else if (motorSin) {
-    h += sig("w", "El motor no se ha ejecutado", esc(ct.join(" · ")) + " <code>Y29</code>");
+  } else if (estado.integridad === "motor_sin_ejecutar") {
+    h += sig("w", "El motor no se ha ejecutado", ctTexto + " <code>Y29</code>");
   } else {
-    h += sig("w", "Revisar los controles de integridad", esc(ct.join(" · ")) + " <code>X26:Y29</code>");
+    h += sig("w", "Revisar los controles de integridad", ctTexto + " <code>X26:Y29</code>");
   }
 
   // 2. WACC
-  if (e8 === null || e8 === 0 || e8 === "") {
+  if (estado.wacc.real === null || estado.wacc.real === 0) {
     h += sig("c", "Falta el WACC de la empresa",
       "Con <code>PARÁMETROS!E8</code> vacía el modelo descuenta a la tasa de inflación, no al WACC real, y ninguna fórmula lo advierte.",
       "ir:" + H.PAR + "|E8");
   } else {
     h += sig("k", "Tasa de descuento diligenciada",
-      "WACC de la empresa <b>" + fmt(e8 * 100, 2) + " %</b> → el modelo descuenta al <b>" +
-      (wacc !== null ? fmt(wacc * 100, 2) : "—") + " %</b> en pesos corrientes. <code>E8</code>");
+      "WACC de la empresa <b>" + fmt(estado.wacc.real * 100, 2) + " %</b> → el modelo descuenta al <b>" +
+      (estado.wacc.corriente !== null ? fmt(estado.wacc.corriente * 100, 2) : "—") + " %</b> en pesos corrientes. <code>E8</code>");
   }
 
   // 3. Alternativa que gobierna
   h += sig("w", "El consolidado sigue a la Alternativa 2",
     "Los resultados financieros —las 19 evaluaciones, el bloque tarifario y el flujo de caja— se calculan sobre la fila 49, que es la Alternativa 2. " +
-    (desfase
+    (estado.alternativaDesfasada
       ? "La Alternativa 1, la que propuso el motor, incluye programas distintos y <b>no afecta</b> a estos resultados."
       : "Hoy coincide con la selección de la Alternativa 1."),
     "go:alt");
 
   // 4. Programas sin datos
+  var sinDatos = estado.programasSinDatos;
   if (sinDatos.length) {
-    h += sig("w", sinDatos.length + " de " + P.length + " programas sin datos",
-      esc(sinDatos.map(function (p) { return "P." + p.n; }).join(", ")) +
+    h += sig("w", sinDatos.length + " de " + state.totalProgramas + " programas sin datos",
+      esc(sinDatos.map(function (p) { return "P." + p.numero; }).join(", ")) +
       " están en 0 de beneficio y 0 de costo. No se distingue si no aplican o si falta diligenciarlos.",
       "go:datos");
   } else {
@@ -126,17 +117,17 @@ export function pintaEstado() {
   }
 
   // 5. IPC
-  if (ipc !== null && ipc < 0.045) {
+  if (estado.ipc.desactualizado) {
     h += sig("c", "Series de referencia desactualizadas",
-      "El modelo proyecta con un IPC de <b>" + fmt(ipc * 100, 2) + " %</b>. El DANE cerró 2025 en <b>5,10 %</b>. " +
+      "El modelo proyecta con un IPC de <b>" + fmt(estado.ipc.valor * 100, 2) + " %</b>. El DANE cerró 2025 en <b>5,10 %</b>. " +
       "Todo el horizonte se está indexando por debajo de la inflación real. <code>C9</code> ← <code>BANREPÚBLICA!V35</code>",
       "ir:" + H.PAR + "|C9");
   }
 
   h += '<div class="sec">Configuración del motor</div>';
-  h += card("Presupuesto disponible", D.monto ? esc(D.monto.t[0][0]) : "—");
-  h += card("Relación B/C mínima exigida", D.minbc ? esc(D.minbc.t[0][0]) : "—");
-  h += card("Combinación elegida para la Alternativa 1", D.selA1 ? (esc(D.selA1.t[0][0]) || "sin elegir") : "—");
+  h += card("Presupuesto disponible", esc(estado.configuracionMotor.presupuesto) || "—");
+  h += card("Relación B/C mínima exigida", esc(estado.configuracionMotor.bcMinimo) || "—");
+  h += card("Combinación elegida para la Alternativa 1", esc(estado.configuracionMotor.combinacionA1) || "sin elegir");
 
   $("s-estado").innerHTML = h;
 }
