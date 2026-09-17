@@ -249,10 +249,12 @@ Esta es la frontera de acoplamiento: todo lo que está a la izquierda de estos c
 
 /**
  * @typedef {Object} ResultadosFinancieros
+ * @property {boolean} flujoCajaEncontrado  // false si no se encontró la hoja FCAJA PROYECTO en el libro; vna/tir/payback/tirModificada no son fiables si esto es false
  * @property {string|null} vna
  * @property {string|null} tir
  * @property {boolean} tirDefinida
  * @property {number|null} tirModificada
+ * @property {string|null} tirModificadaTexto  // texto crudo de FCJ!D66 cuando no es un número; null si tirModificada sí es un número
  * @property {string|null} payback
  * @property {{waccCorriente: string, cargoFijoAcueducto: string, cargoVariableAcueducto: string, gradiente: string|null}} parametros
  * @property {boolean} alcantarilladoEnCero
