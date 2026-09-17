@@ -55,6 +55,20 @@ test("mapResultadosHidraulicos deja como null las celdas con texto en la serie I
   assert.equal(out.serieIPUF[1].valor, null);
 });
 
+test("mapResultadosHidraulicos da 0 (no null) cuando hay años válidos pero menos de 4 (paridad con el render anterior, ver Fase 2D)", () => {
+  // app/render.js dividía por Math.max(1, tramo.length) antes de esta fase;
+  // con 2 años válidos el tramo desde el 4.º año queda vacío y el resultado
+  // era 0, no null. Se replica ese comportamiento a propósito -- no se
+  // "mejora" durante una migración de paridad.
+  var raw = { ipuf2: renglon([9, 9]) };
+  assert.equal(mapResultadosHidraulicos(raw).ipufPromedio, 0);
+});
+
+test("mapResultadosHidraulicos da null (no 0) cuando no hay ningún año válido", () => {
+  var raw = { ipuf2: renglon(["n/d", "n/d"]) };
+  assert.equal(mapResultadosHidraulicos(raw).ipufPromedio, null);
+});
+
 /* ---------- mapResultadosFinancieros ---------- */
 
 test("mapResultadosFinancieros conserva vna/tir/payback como texto tal como vienen del libro", () => {
@@ -97,4 +111,27 @@ test("mapResultadosFinancieros no lanza y devuelve null cuando faltan todas las 
   assert.equal(out.tir, null);
   assert.equal(out.tirDefinida, false);
   assert.equal(out.payback, null);
+});
+
+test("mapResultadosFinancieros marca flujoCajaEncontrado=false cuando falta la hoja FCAJA PROYECTO", () => {
+  assert.equal(mapResultadosFinancieros({}).flujoCajaEncontrado, false);
+});
+
+test("mapResultadosFinancieros marca flujoCajaEncontrado=true cuando la hoja FCAJA PROYECTO está presente", () => {
+  var raw = { fcaja: { t: [["4 años"], ["18,3 %"], ["$ 1.234 millones"]] } };
+  assert.equal(mapResultadosFinancieros(raw).flujoCajaEncontrado, true);
+});
+
+test("mapResultadosFinancieros conserva el texto crudo de TIR modificada cuando la celda no es un número", () => {
+  var raw = { fcaja: { t: [["—"], ["—"], ["—"]] }, tirm: celda("N.A. (sin datos)") };
+  var out = mapResultadosFinancieros(raw);
+  assert.equal(out.tirModificada, null);
+  assert.equal(out.tirModificadaTexto, "N.A. (sin datos)");
+});
+
+test("mapResultadosFinancieros deja tirModificadaTexto en null cuando TIR modificada sí es un número", () => {
+  var raw = { fcaja: { t: [["—"], ["—"], ["—"]] }, tirm: celda(0.15) };
+  var out = mapResultadosFinancieros(raw);
+  assert.equal(out.tirModificada, 0.15);
+  assert.equal(out.tirModificadaTexto, null);
 });

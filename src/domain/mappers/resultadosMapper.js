@@ -6,10 +6,21 @@
  */
 import { num } from "../../utils/format.js";
 
+/**
+ * Replica a propósito una particularidad del cálculo que ya existía en
+ * app/render.js:pintaResultados() antes de la Fase 2D: si hay AL MENOS un
+ * año válido en la serie pero son menos de `desde` (p. ej. 2 años válidos
+ * con desde=3), el promedio da 0 -- no null -- porque el código original
+ * dividía por `Math.max(1, tramo.length)` para evitar una división por
+ * cero. Solo se devuelve null cuando la serie completa no tiene ningún año
+ * válido. No es el comportamiento "más correcto" (sería razonable esperar
+ * null también en ese caso), pero esta fase exige paridad exacta con la
+ * pantalla anterior, no una corrección -- ver informe de la Fase 2D.
+ */
 function promedioDesde(serie, desde) {
+  if (!serie.length) return null;
   var tramo = serie.slice(desde);
-  if (!tramo.length) return null;
-  return tramo.reduce(function (a, b) { return a + b; }, 0) / tramo.length;
+  return tramo.reduce(function (a, b) { return a + b; }, 0) / Math.max(1, tramo.length);
 }
 
 /**
@@ -47,16 +58,27 @@ export function mapResultadosHidraulicos(raw) {
 export function mapResultadosFinancieros(raw) {
   var f = raw.fcaja ? raw.fcaja.t : null; // C65 payback, C66 TIR, C67 VNA
   var tir = f ? String(f[1][0]) : null;
-  var tirm = raw.tirm ? num(raw.tirm.v[0][0]) : null;
+  var tirmCruda = raw.tirm ? raw.tirm.v[0][0] : null;
+  var tirm = num(tirmCruda);
 
   var alc = raw.par ? num(raw.par.v[13][0]) : null;  // C17
   var alc2 = raw.par ? num(raw.par.v[14][0]) : null; // C18
 
   return {
+    // true si se encontró la hoja FCAJA PROYECTO en el libro -- antes de la
+    // Fase 2D, render.js mostraba un mensaje distinto ("No encuentro la
+    // hoja...") en vez de las tarjetas de VNA/TIR/payback cuando esta hoja
+    // faltaba (p. ej. una plantilla de otra versión). Sin este campo, la UI
+    // no podría distinguir "hoja ausente" de "hoja presente pero vacía".
+    flujoCajaEncontrado: f !== null,
     vna: f ? String(f[2][0]) : null,
     tir: tir,
     tirDefinida: tir !== null && tir.indexOf("N.A") < 0,
     tirModificada: tirm,
+    // Texto crudo de FCJ!D66 para cuando no es un número (p. ej. vacía o con
+    // una nota) -- paridad con el `esc(tirm)` que usaba render.js cuando
+    // `num(tirm)` no daba un número.
+    tirModificadaTexto: tirm === null && tirmCruda !== null ? String(tirmCruda) : null,
     payback: f ? String(f[0][0]) : null,
     parametros: {
       waccCorriente: raw.par ? String(raw.par.t[4][0]) : "",

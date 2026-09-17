@@ -221,27 +221,34 @@ function filaAnios(pref, anios, vals) {
 }
 
 /* ---------- PANTALLA: RESULTADOS ---------- */
+/**
+ * Los sub-tabs Hidráulica y Financiero consumen ResultadosHidraulicos /
+ * ResultadosFinancieros ya mapeados (domain/mappers/resultadosMapper.js), no
+ * state.D -- ver docs/ARQUITECTURA_MVP.md §2/§4. El sub-tab Comercial es la
+ * excepción deliberada: sigue usando el helper compartido `programas()`
+ * (state.D.prog), el mismo que usa la pantalla Datos -- migrarlo aquí
+ * significaría migrar (o duplicar) esa lógica antes de tiempo, y Datos no
+ * entra en esta fase. Ver informe de la Fase 2D.
+ */
 export function pintaResultados() {
-  var D = state.D;
+  var hid = state.resultadosHidraulicos, fin = state.resultadosFinancieros;
+  if (!hid || !fin) { $("s-result").innerHTML = errBox("Todavía no se ha leído el libro."); return; }
+
   var h = '<div class="subnav" id="subR">' +
     '<button data-r="hid" class="' + (state.subResult === "hid" ? "on" : "") + '">Hidráulica</button>' +
     '<button data-r="com" class="' + (state.subResult === "com" ? "on" : "") + '">Comercial</button>' +
     '<button data-r="fin" class="' + (state.subResult === "fin" ? "on" : "") + '">Financiero</button></div>';
 
   if (state.subResult === "hid") {
-    var ip = D.ipuf2 ? D.ipuf2.v[0].map(num).filter(function (x) { return x !== null; }) : [];
-    var prom = ip.length ? ip.slice(3).reduce(function (a, b) { return a + b; }, 0) / Math.max(1, ip.slice(3).length) : null;
-    var meta = D.meta ? num(D.meta.v[0][0]) : null;
     h += '<div class="kpi"><div class="kl">IPUF promedio del horizonte · Alternativa 2</div><div class="kv">' +
-      (prom !== null ? fmt(prom, 2) : "—") + '<span class="ku">m³/susc·mes</span></div>' +
-      '<div class="ks">Alternativas!M62:V62 · meta ' + (meta !== null ? fmt(meta, 1) : "—") + '</div>' +
-      (prom !== null && meta !== null ? '<div class="nt" style="color:' + (prom < meta ? "var(--ok)" : "var(--cr)") + '">' +
-        (prom < meta ? "Cumple la meta de la empresa." : "No alcanza la meta de la empresa.") + '</div>' : "") + '</div>';
-    h += sparkIPUF();
-    var ia = D.ianc2 ? D.ianc2.v[0].map(num).filter(function (x) { return x !== null; }) : [];
-    if (ia.length) {
-      h += '<div class="kpi"><div class="kl">IANC al inicio del horizonte</div><div class="kv">' + fmt(ia[0], 2) + '<span class="ku">%</span></div><div class="ks">Alternativas!J59</div></div>';
-      h += '<div class="kpi"><div class="kl">IANC al final del horizonte</div><div class="kv">' + fmt(ia[ia.length - 1], 2) + '<span class="ku">%</span></div><div class="ks">Alternativas!V59</div></div>';
+      (hid.ipufPromedio !== null ? fmt(hid.ipufPromedio, 2) : "—") + '<span class="ku">m³/susc·mes</span></div>' +
+      '<div class="ks">Alternativas!M62:V62 · meta ' + (hid.metaIPUF !== null ? fmt(hid.metaIPUF, 1) : "—") + '</div>' +
+      (hid.cumpleMeta !== null ? '<div class="nt" style="color:' + (hid.cumpleMeta ? "var(--ok)" : "var(--cr)") + '">' +
+        (hid.cumpleMeta ? "Cumple la meta de la empresa." : "No alcanza la meta de la empresa.") + '</div>' : "") + '</div>';
+    h += sparkIPUF(hid);
+    if (hid.ianc.inicio !== null) {
+      h += '<div class="kpi"><div class="kl">IANC al inicio del horizonte</div><div class="kv">' + fmt(hid.ianc.inicio, 2) + '<span class="ku">%</span></div><div class="ks">Alternativas!J59</div></div>';
+      h += '<div class="kpi"><div class="kl">IANC al final del horizonte</div><div class="kv">' + fmt(hid.ianc.fin, 2) + '<span class="ku">%</span></div><div class="ks">Alternativas!V59</div></div>';
     }
   }
 
@@ -252,36 +259,32 @@ export function pintaResultados() {
   }
 
   if (state.subResult === "fin") {
-    var f = D.fcaja ? D.fcaja.t : null;   // C65 payback, C66 TIR, C67 VNA
-    var tirm = D.tirm ? D.tirm.v[0][0] : null;
-    if (f) {
-      h += '<div class="kpi"><div class="kl">VNA del proyecto</div><div class="kv">' + esc(f[2][0]) + '<span class="ku">millones $</span></div><div class="ks">FCAJA PROYECTO!C67</div></div>';
-      h += '<div class="kpi"><div class="kl">TIR</div><div class="kv">' + esc(f[1][0]) + '</div><div class="ks">FCAJA PROYECTO!C66</div>' +
-        (String(f[1][0]).indexOf("N.A") >= 0 ? '<div class="nt">No es un error: el flujo de caja no cambia de signo dentro del horizonte, así que la TIR no está definida.</div>' : '') + '</div>';
-      h += '<div class="kpi"><div class="kl">TIR modificada</div><div class="kv">' + (num(tirm) !== null ? fmt(num(tirm) * 100, 1) + '<span class="ku">%</span>' : esc(tirm)) + '</div><div class="ks">FCAJA PROYECTO!D66</div></div>';
-      h += '<div class="kpi"><div class="kl">Período de recuperación</div><div class="kv">' + esc(f[0][0]) + '<span class="ku">años</span></div><div class="ks">FCAJA PROYECTO!C65</div></div>';
+    if (fin.flujoCajaEncontrado) {
+      h += '<div class="kpi"><div class="kl">VNA del proyecto</div><div class="kv">' + esc(fin.vna) + '<span class="ku">millones $</span></div><div class="ks">FCAJA PROYECTO!C67</div></div>';
+      h += '<div class="kpi"><div class="kl">TIR</div><div class="kv">' + esc(fin.tir) + '</div><div class="ks">FCAJA PROYECTO!C66</div>' +
+        (!fin.tirDefinida ? '<div class="nt">No es un error: el flujo de caja no cambia de signo dentro del horizonte, así que la TIR no está definida.</div>' : '') + '</div>';
+      h += '<div class="kpi"><div class="kl">TIR modificada</div><div class="kv">' +
+        (fin.tirModificada !== null ? fmt(fin.tirModificada * 100, 1) + '<span class="ku">%</span>' : esc(fin.tirModificadaTexto)) +
+        '</div><div class="ks">FCAJA PROYECTO!D66</div></div>';
+      h += '<div class="kpi"><div class="kl">Período de recuperación</div><div class="kv">' + esc(fin.payback) + '<span class="ku">años</span></div><div class="ks">FCAJA PROYECTO!C65</div></div>';
     } else {
       h += '<div class="card"><p>No encuentro la hoja <code>' + esc(H.FCJ) + '</code> en este libro.</p></div>';
     }
     h += '<div class="sec">Parámetros que gobiernan estos números</div>';
-    if (D.par) {
-      h += card("WACC en pesos corrientes", esc(D.par.t[4][0]), "PARÁMETROS!C8");
-      h += card("Cargo fijo acueducto", esc(D.par.t[11][0]), "C15");
-      h += card("Cargo variable acueducto", esc(D.par.t[12][0]), "C16");
-      var alc = num(D.par.v[13][0]), alc2 = num(D.par.v[14][0]);
-      if ((alc === 0 || alc === null) && (alc2 === 0 || alc2 === null))
-        h += '<div class="flag">Los cargos de alcantarillado están en cero. Confirmar si la empresa no presta ese servicio o si falta el dato. <code>C17</code> <code>C18</code></div>';
-    }
-    if (D.grad) h += card("Gradiente de perpetuidad", esc(D.grad.t[0][0]), "PARÁMETROS!C33");
+    h += card("WACC en pesos corrientes", esc(fin.parametros.waccCorriente), "PARÁMETROS!C8");
+    h += card("Cargo fijo acueducto", esc(fin.parametros.cargoFijoAcueducto), "C15");
+    h += card("Cargo variable acueducto", esc(fin.parametros.cargoVariableAcueducto), "C16");
+    if (fin.alcantarilladoEnCero)
+      h += '<div class="flag">Los cargos de alcantarillado están en cero. Confirmar si la empresa no presta ese servicio o si falta el dato. <code>C17</code> <code>C18</code></div>';
+    if (fin.parametros.gradiente !== null) h += card("Gradiente de perpetuidad", esc(fin.parametros.gradiente), "PARÁMETROS!C33");
   }
   $("s-result").innerHTML = h;
 }
 
-function sparkIPUF() {
-  var D = state.D;
-  var v = D.ipuf2 ? D.ipuf2.v[0].map(num) : [];
-  var an = D.anios ? D.anios.t[0] : [];
-  var meta = D.meta ? num(D.meta.v[0][0]) : null;
+function sparkIPUF(hid) {
+  var v = hid.serieIPUF.map(function (s) { return s.valor; });
+  var an = hid.serieIPUF.map(function (s) { return s.anio; });
+  var meta = hid.metaIPUF;
   var pts = [];
   for (var i = 0; i < v.length; i++) { if (v[i] !== null) pts.push([i, v[i]]); }
   if (pts.length < 2) return "";

@@ -26,7 +26,9 @@ async function refrescar() {
     state.hojasLibro = modelo.hojasLibro;
     state.estado = modelo.estado;
     state.totalProgramas = modelo.programas.length;
-    state.D = modelo.raw; // puente temporal -- ver informe de la Fase 2C
+    state.resultadosHidraulicos = modelo.resultadosHidraulicos;
+    state.resultadosFinancieros = modelo.resultadosFinancieros;
+    state.D = modelo.raw; // puente temporal -- ver informe de la Fase 2C/2D
     pintaTodo();
     foot("Leído · " + state.hojasLibro.length + " hojas · " + new Date().toLocaleTimeString("es-CO"), "ok");
   } catch (e) {
