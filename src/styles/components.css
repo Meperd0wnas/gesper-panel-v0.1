@@ -24,6 +24,16 @@
  * button.act tambien conecta su border-radius:4px a --radius-sm (valor
  * exacto). header button.rf/.navb/.prow/.subnav siguen en 5px literal —
  * no hay token de 5px, no se fuerza. Nada mas cambio de valor.
+ *
+ * Fase 2E: .sig ya usaba la composicion minima (borde-izq. + punto,
+ * fondo/texto neutros) — no se le quito nada. Unico ajuste: .sig.c .tt
+ * pasa a --weight-bold (antes semibold, igual que k/w) para que critico
+ * destaque por peso tipografico, no por saturacion. .kpi .nt pasa de
+ * --wn (advertencia) a --mut (neutro) como color por defecto: el unico
+ * uso que dependia de ese default es una nota que dice explicitamente
+ * "no es un error" y se pintaba en ambar. El otro uso de .kpi .nt siempre
+ * sobreescribe el color inline, no se ve afectado. Ver informe de Fase 2E
+ * para el resto de la auditoria (.flag, .vd) y por que no se tocaron.
  */
 
 /* ---------- base ---------- */
@@ -104,6 +114,7 @@ footer.ok{color:var(--ok);background:var(--ok-w)}
 .sig.c{border-left:3px solid var(--cr)}.sig.c .lt{background:var(--cr)}
 .sig .tx{flex:1;min-width:0}
 .sig .tt{font-size:var(--text-md);font-weight:var(--weight-semibold);margin-bottom:2px}
+.sig.c .tt{font-weight:var(--weight-bold)}
 .sig .ds{font-size:var(--text-sm);color:var(--mut);line-height:var(--leading-relaxed)}
 .sig .ds b{color:var(--ink2)}
 code{font-family:var(--font-mono);font-size:var(--text-xs);background:var(--sunk);padding:1px 4px;border-radius:2px;color:var(--ink2)}
@@ -170,7 +181,7 @@ button.act.ghost:hover{background:var(--sunk);border-color:var(--border-strong)}
 .kpi .kv{font-size:var(--text-2xl);font-weight:var(--weight-semibold);letter-spacing:-.02em}
 .kpi .ku{font-size:var(--text-xs);color:var(--mut);font-weight:var(--weight-regular);margin-left:3px}
 .kpi .ks{font-family:var(--font-mono);font-size:var(--text-2xs);color:var(--fnt);margin-top:2px}
-.kpi .nt{font-size:var(--text-xs);color:var(--wn);margin-top:3px}
+.kpi .nt{font-size:var(--text-xs);color:var(--mut);margin-top:3px}
 
 /* ---------- tabla comparativa ---------- */
 table.cmp{width:100%;border-collapse:collapse;font-size:var(--text-sm)}
