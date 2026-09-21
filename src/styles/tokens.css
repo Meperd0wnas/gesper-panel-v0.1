@@ -11,13 +11,27 @@
  * alias historicos correspondientes (--pane, --pane2, --ln, --ln2, --shd)
  * ya no los usa ningun selector pero se mantienen por compatibilidad.
  * --gs/--ac/--ok/--wn/--cr/--mut/--fnt si siguen en uso (render.js).
+ *
+ * Fase 2G: calibracion light-first de --sunk/--border/--border-strong
+ * (mas claros, mismo matiz). --canvas/--surface casi no cambiaron — ya
+ * estaban cerca del objetivo. Dark mode intacto. Ver informe de Fase 2G.
  */
 
 :root{
-  /* ---------- Canvas / superficies ---------- */
-  --canvas:#F5F7F6;
+  /* ---------- Canvas / superficies ----------
+     Fase 2G: calibracion "light-first". --surface ya era #FFFFFF exacto
+     y --canvas ya estaba a ~96.5% de luminosidad (practicamente en el
+     valor de referencia ~#F5F5F7) — ninguno de los dos era la causa de
+     la sensacion de "modo nocturno". El ajuste real esta en --sunk,
+     --border y --border-strong (ver mas abajo): son los que mas se usan
+     (11 selectores solo --border) y los que mas se alejaban del blanco.
+     Los 3 se aclararon con un desplazamiento uniforme por canal (mismo
+     matiz verde-grisaceo que el resto de la paleta, ver --ink2/--muted/
+     --subtle sin tocar), preservando el espaciado relativo entre
+     niveles. Dark mode no se toco — ver bloque @media mas abajo. */
+  --canvas:#F5F5F7;
   --surface:#FFFFFF;
-  --sunk:#EBEFEE;
+  --sunk:#F0F4F3;
 
   /* ---------- Texto ---------- */
   --ink:#1A2320;
@@ -26,8 +40,8 @@
   --subtle:#96A29E;
 
   /* ---------- Borde ---------- */
-  --border:#DCE2E0;
-  --border-strong:#C4CECB;
+  --border:#E8EEEC;
+  --border-strong:#D2DCD9;
 
   /* ---------- Interaccion: azul primario ---------- */
   --primary:#1B63C7;
@@ -135,6 +149,11 @@
   --mono:var(--font-mono);
   --shd:var(--shadow-sm);
 }
+/* Modo oscuro desactivado a pedido del usuario (2026-09-21): el panel debe
+   verse siempre en claro sin importar el tema de Windows/Office. Los
+   valores quedan comentados (no borrados) por si en el futuro se agrega
+   un interruptor manual de tema, en vez de seguir el tema del sistema.
+   Para reactivarlo tal como estaba: quitar el bloque de comentario.
 @media (prefers-color-scheme: dark){:root{
   --canvas:#1B2422;
   --surface:#151D1B;
@@ -162,3 +181,4 @@
 
   --shadow-sm:0 1px 2px rgba(0,0,0,.25);
 }}
+*/
