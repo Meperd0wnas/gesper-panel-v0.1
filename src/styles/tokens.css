@@ -42,9 +42,41 @@
   --wn:#96650D; --wn-w:#FCF0DA;
   --cr:#A93A2B; --cr-w:#FAE3E0;
 
-  /* ---------- Tipografia ---------- */
+  /* ---------- Tipografia: familia ---------- */
   --font-sans:"Segoe UI",system-ui,-apple-system,sans-serif;
   --font-mono:Consolas,"Courier New",monospace;
+
+  /* ---------- Tipografia: escala de tamanos ----------
+     Fase 2B. Salio de auditar los ~11 valores de font-size que habia
+     dispersos en components.css/screens.css (9px a 18px) y agruparlos por
+     el valor mayoritario de cada franja cercana, con una excepcion: la
+     franja 10/10.5px se resolvio hacia 10.5px (no hacia el 10px mayoritario)
+     porque esa franja incluye texto de botones e inputs (.yr input) y la
+     prioridad es legibilidad, no el conteo. Ningun valor de --text-md hacia
+     abajo se cambio para inputs. Ver informe de Fase 2B para el mapeo
+     selector por selector. */
+  --text-2xs:9.5px;   /* badges, referencias de celda, encabezados de tabla en mayuscula */
+  --text-xs:10.5px;   /* metadata, botones secundarios, ayudas de campo, unidades */
+  --text-sm:11px;     /* cuerpo de tarjetas/alertas/tabla, nombres de fila */
+  --text-md:12px;     /* texto de input, titulos de alerta, nombre en navb */
+  --text-lg:13px;     /* texto base del panel, valor de tarjeta */
+  --text-xl:14.5px;   /* titulo de la ficha de identidad (Estado) */
+  --text-2xl:18px;    /* valor de KPI, el numero mas grande del panel */
+
+  /* ---------- Tipografia: peso ----------
+     Los 4 pesos ya eran los unicos en uso (400/500/600/700); esto solo les
+     pone nombre, no reduce nada. */
+  --weight-regular:400;
+  --weight-medium:500;
+  --weight-semibold:600;
+  --weight-bold:700;
+
+  /* ---------- Tipografia: interlineado ----------
+     Solo se tokenizan los dos valores que ya se repetian en mas de un
+     selector. .fld .hp (1.4) y .idc .mt (1.65) quedan como literales de
+     un solo uso — ver informe de Fase 2B, punto 8. */
+  --leading-normal:1.5;
+  --leading-relaxed:1.45;
 
   /* ---------- Spacing ----------
      Escala de referencia (4/8/12/16/24). Todavia NO esta conectada a
