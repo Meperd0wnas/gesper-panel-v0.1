@@ -1,14 +1,16 @@
 /**
  * tokens.css — sistema de tokens del panel: roles semanticos (canvas/
- * superficie/texto/borde/interaccion/estado/tipografia) mas una escala de
- * referencia de spacing y radios todavia no consumida por components.css/
- * screens.css.
+ * superficie/texto/borde/interaccion/estado/tipografia/sombra) mas una
+ * escala tipografica (Fase 2B) y una escala de spacing todavia no
+ * consumida por components.css/screens.css.
  *
- * Fase 2A (consolidacion, sin cambios visuales): los nombres historicos
- * (--gs, --ac, --pane, --pane2, --mut, --fnt, --ln, --ln2, --ui, --mono)
- * se mantienen como alias hacia los tokens semanticos nuevos, porque
- * components.css y el HTML generado por render.js todavia los usan
- * directamente. Los valores no cambiaron respecto a la extraccion de Fase 1.
+ * Fase 2A: --gs/--ac/--pane/--pane2/--mut/--fnt/--ln/--ln2/--ui/--mono se
+ * dejaron como alias de compatibilidad. Fase 2B migro font-family a
+ * --font-sans/--font-mono. Fase 2C migro background/border a
+ * --surface/--canvas/--border/--border-strong y sombra a --shadow-sm; los
+ * alias historicos correspondientes (--pane, --pane2, --ln, --ln2, --shd)
+ * ya no los usa ningun selector pero se mantienen por compatibilidad.
+ * --gs/--ac/--ok/--wn/--cr/--mut/--fnt si siguen en uso (render.js).
  */
 
 :root{
@@ -91,23 +93,31 @@
   --space-5:24px;
 
   /* ---------- Radio ----------
-     Escala de referencia, tampoco conectada todavia. 6px ya es el radio
-     exacto de .idc/.sig/.card/.kpi (--radius-md); el resto de componentes
-     usa 3px/4px/5px sin un patron unico, asi que --radius-sm no reemplaza
-     ningun valor por ahora — ver informe de Fase 2A, punto 8. */
+     Fase 2C: --radius-md ya esta conectado — es el radio exacto de
+     .idc/.sig/.card/.kpi/header .lg, migrarlo no cambia nada visualmente.
+     --radius-sm sigue sin conectar: 3px/4px/5px conviven en distintos
+     controles (.yr input, .vd, button.act/.fld/.flag, .navb/.prow/.subnav/
+     scrollbar-thumb) sin un valor unico, y unificarlos si cambia la
+     apariencia real — ver informe de Fase 2C, punto de bordes/radios. */
   --radius-sm:4px;
   --radius-md:6px;
 
   /* ---------- Sombra ----------
-     Sin cambios. La revision de cuantas sombras conserva el panel es
-     Fase 2C, no esta fase. */
-  --shd:0 1px 2px rgba(20,30,28,.05), 0 1px 1px rgba(20,30,28,.04);
+     Fase 2C: unico rol de sombra que sobrevive en el sistema. Se quito
+     box-shadow de .card/.kpi/.idc/.sig/.navb — son superficies estaticas
+     en el flujo del documento, no elementos con elevacion real (GESPER no
+     tiene menus/popovers ni overlays temporales) — y solo queda en
+     header .lg, el icono de marca. El valor no cambio, solo el nombre y
+     el alcance de uso — ver informe de Fase 2C. */
+  --shadow-sm:0 1px 2px rgba(20,30,28,.05), 0 1px 1px rgba(20,30,28,.04);
 
   /* ---------- Alias de compatibilidad ----------
-     components.css y el HTML generado por render.js siguen usando estos
-     nombres. Migrar cada uso a su token semantico queda para una fase
-     posterior; por ahora solo reenvian al valor semantico de arriba, asi
-     que el resultado visual es identico al de Fase 1. */
+     Algunos ya no los usa ningun selector de components.css/screens.css
+     (--pane, --pane2, --ln, --ln2 se migraron a sus tokens semanticos en
+     Fase 2C, igual que --ui/--mono en Fase 2B) pero se mantienen por si
+     algo fuera de estos archivos los referencia — ninguno lo hace hoy,
+     verificado por busqueda en src/. --gs/--ac/--ok/--wn/--cr/--mut/--fnt
+     si siguen en uso directo (render.js), no tocar. */
   --pane:var(--surface);
   --pane2:var(--canvas);
   --mut:var(--muted);
@@ -118,6 +128,7 @@
   --ac:var(--brand); --ac-w:var(--brand-wash); --ac-dk:var(--brand-dark);
   --ui:var(--font-sans);
   --mono:var(--font-mono);
+  --shd:var(--shadow-sm);
 }
 @media (prefers-color-scheme: dark){:root{
   --canvas:#1B2422;
@@ -144,5 +155,5 @@
   --wn:#D9A945; --wn-w:#33280F;
   --cr:#E0705C; --cr-w:#38201C;
 
-  --shd:0 1px 2px rgba(0,0,0,.25);
+  --shadow-sm:0 1px 2px rgba(0,0,0,.25);
 }}

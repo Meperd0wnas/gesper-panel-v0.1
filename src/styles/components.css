@@ -6,32 +6,36 @@
  * Requiere las variables definidas en tokens.css.
  *
  * Fase 2B: font-size/font-weight/font-family(ui,mono) migrados a los tokens
- * tipograficos de tokens.css. Los valores de font-size que cambiaron lo
- * hicieron en +-0.5px como maximo (ver informe de Fase 2B); letter-spacing
- * se dejo tal cual en cada regla porque cada uso tiene una funcion
- * tipografica propia y son literales de un solo uso.
+ * tipograficos de tokens.css.
+ *
+ * Fase 2C: background/border migrados de los alias --pane/--pane2/--ln/--ln2
+ * a --surface/--canvas/--border/--border-strong (mismo valor, sin cambio
+ * visual). border-radius:6px migrado a --radius-md donde coincidia exacto.
+ * box-shadow:var(--shd) se quito de .card/.kpi/.idc/.sig/.navb — superficies
+ * estaticas sin elevacion real — y solo queda, renombrado a --shadow-sm, en
+ * header .lg. Ver informe de Fase 2C para el detalle por selector.
  */
 
 /* ---------- base ---------- */
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
-body{background:var(--pane2);color:var(--ink);font-family:var(--font-sans);font-size:var(--text-lg);line-height:var(--leading-normal);
+body{background:var(--canvas);color:var(--ink);font-family:var(--font-sans);font-size:var(--text-lg);line-height:var(--leading-normal);
   display:flex;flex-direction:column;overflow:hidden}
 ::-webkit-scrollbar{width:9px;height:9px}
 ::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:var(--ln2);border-radius:5px;border:2px solid var(--pane2)}
+::-webkit-scrollbar-thumb{background:var(--ln2);border-radius:5px;border:2px solid var(--canvas)}
 ::-webkit-scrollbar-thumb:hover{background:var(--fnt)}
 
 /* ---------- chrome: brandbar / header / nav / main / footer ---------- */
 .brandbar{height:3px;flex:none;background:linear-gradient(90deg,var(--gs),var(--ac))}
 
-header{background:var(--pane);border-bottom:1px solid var(--ln);padding:9px 12px;display:flex;align-items:center;gap:8px;flex:none}
-header .lg{width:23px;height:23px;border-radius:6px;background:linear-gradient(135deg,var(--gs),var(--ac));color:#fff;
-  display:grid;place-items:center;font-size:var(--text-sm);font-weight:var(--weight-bold);font-family:var(--font-mono);flex:none;box-shadow:var(--shd)}
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:9px 12px;display:flex;align-items:center;gap:8px;flex:none}
+header .lg{width:23px;height:23px;border-radius:var(--radius-md);background:linear-gradient(135deg,var(--gs),var(--ac));color:#fff;
+  display:grid;place-items:center;font-size:var(--text-sm);font-weight:var(--weight-bold);font-family:var(--font-mono);flex:none;box-shadow:var(--shadow-sm)}
 @media (prefers-color-scheme: dark){header .lg{color:#101816}}
 header b{font-size:var(--text-lg);letter-spacing:-.01em}
 header .ver{margin-left:auto;font-family:var(--font-mono);font-size:var(--text-xs);color:var(--fnt)}
-header button.rf{display:inline-flex;align-items:center;gap:5px;background:none;border:1px solid var(--ln2);border-radius:5px;
+header button.rf{display:inline-flex;align-items:center;gap:5px;background:none;border:1px solid var(--border-strong);border-radius:5px;
   padding:4px 9px;font-size:var(--text-sm);color:var(--gs);cursor:pointer;font-family:var(--font-sans);font-weight:var(--weight-semibold);
   transition:background .12s ease,border-color .12s ease}
 header button.rf:hover{background:var(--gs-w);border-color:var(--gs)}
@@ -39,7 +43,7 @@ header button.rf .ic{transition:transform .5s ease;flex:none}
 header button.rf.spin .ic{animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 
-nav{display:flex;background:var(--pane);border-bottom:1px solid var(--ln);overflow-x:auto;flex:none}
+nav{display:flex;background:var(--surface);border-bottom:1px solid var(--border);overflow-x:auto;flex:none}
 nav button{flex:1 0 auto;background:none;border:none;border-bottom:2px solid transparent;padding:7px 3px 6px;
   display:flex;flex-direction:column;align-items:center;gap:3px;
   font-size:var(--text-2xs);color:var(--mut);cursor:pointer;font-family:var(--font-sans);white-space:nowrap;
@@ -47,13 +51,13 @@ nav button{flex:1 0 auto;background:none;border:none;border-bottom:2px solid tra
 nav button svg{width:15px;height:15px;flex:none}
 nav button.on{color:var(--gs);border-bottom-color:var(--ac);font-weight:var(--weight-bold)}
 nav button:hover{color:var(--ink)}
-nav button:hover:not(.on){border-bottom-color:var(--ln2)}
+nav button:hover:not(.on){border-bottom-color:var(--border-strong)}
 
 main{flex:1;overflow-y:auto;padding:12px}
 .scr{display:none}.scr.on{display:block;animation:fadeIn .16s ease}
 @keyframes fadeIn{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:translateY(0)}}
 
-footer{border-top:1px solid var(--ln);background:var(--pane);padding:7px 12px;font-size:var(--text-xs);
+footer{border-top:1px solid var(--border);background:var(--surface);padding:7px 12px;font-size:var(--text-xs);
   color:var(--fnt);font-family:var(--font-mono);flex:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   transition:background .15s ease,color .15s ease}
 footer.err{color:var(--cr);background:var(--cr-w)}
@@ -64,13 +68,13 @@ footer.ok{color:var(--ok);background:var(--ok-w)}
 .sec:first-child{margin-top:0}
 
 /* ---------- idc: ficha identidad ---------- */
-.idc{background:var(--pane);border:1px solid var(--ln);border-left:3px solid var(--gs);border-radius:6px;padding:11px 12px;margin-bottom:12px;box-shadow:var(--shd)}
+.idc{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--gs);border-radius:var(--radius-md);padding:11px 12px;margin-bottom:12px;box-shadow:var(--shadow-sm)}
 .idc .co{font-size:var(--text-xl);font-weight:var(--weight-semibold);margin-bottom:2px}
 .idc .mt{font-size:var(--text-sm);color:var(--mut);font-family:var(--font-mono);line-height:1.65}
 
 /* ---------- sig: senal / alerta ---------- */
-.sig{display:flex;gap:9px;align-items:flex-start;background:var(--pane);border:1px solid var(--ln);
-  border-radius:6px;padding:10px 11px;margin-bottom:7px;box-shadow:var(--shd)}
+.sig{display:flex;gap:9px;align-items:flex-start;background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius-md);padding:10px 11px;margin-bottom:7px}
 .sig .lt{width:9px;height:9px;border-radius:50%;margin-top:5px;flex:none;box-shadow:0 0 0 3px var(--sunk)}
 .sig.k{border-left:3px solid var(--ok)}.sig.k .lt{background:var(--ok)}
 .sig.w{border-left:3px solid var(--wn)}.sig.w .lt{background:var(--wn)}
@@ -82,26 +86,26 @@ footer.ok{color:var(--ok);background:var(--ok-w)}
 code{font-family:var(--font-mono);font-size:var(--text-xs);background:var(--sunk);padding:1px 4px;border-radius:2px;color:var(--ink2)}
 
 /* ---------- botones ---------- */
-button.act{margin-top:6px;background:none;border:1px solid var(--ln2);border-radius:4px;padding:4px 9px;
+button.act{margin-top:6px;background:none;border:1px solid var(--border-strong);border-radius:4px;padding:4px 9px;
   font-size:var(--text-xs);color:var(--gs);cursor:pointer;font-family:var(--font-sans);font-weight:var(--weight-semibold);
   transition:background .12s ease,border-color .12s ease,transform .08s ease}
 button.act:hover{background:var(--gs-w);border-color:var(--gs)}
 button.act:active{transform:scale(.97)}
 button.act.primary{color:#fff;background:var(--ac);border-color:var(--ac)}
 button.act.primary:hover{background:var(--ac-dk);border-color:var(--ac-dk)}
-button.act.ghost{color:var(--mut);border-color:var(--ln2)}
-button.act.ghost:hover{background:var(--sunk);border-color:var(--ln2)}
+button.act.ghost{color:var(--mut);border-color:var(--border-strong)}
+button.act.ghost:hover{background:var(--sunk);border-color:var(--border-strong)}
 
 /* ---------- card ---------- */
-.card{background:var(--pane);border:1px solid var(--ln);border-radius:6px;padding:10px 11px;margin-bottom:7px;box-shadow:var(--shd)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:10px 11px;margin-bottom:7px}
 .card h4{margin:0 0 2px;font-size:var(--text-sm);font-weight:var(--weight-semibold);color:var(--ink2)}
 .card .v{font-family:var(--font-mono);font-size:var(--text-lg);color:var(--ink)}
 .card p{margin:3px 0 0;font-size:var(--text-sm);color:var(--mut)}
 
 /* ---------- navb: boton de navegacion en bloque ---------- */
-.navb{width:100%;text-align:left;background:var(--pane);border:1px solid var(--ln);border-radius:5px;
+.navb{width:100%;text-align:left;background:var(--surface);border:1px solid var(--border);border-radius:5px;
   padding:9px 10px;margin-bottom:5px;cursor:pointer;font-family:var(--font-sans);display:flex;align-items:center;gap:9px;
-  box-shadow:var(--shd);transition:border-color .12s ease,background .12s ease,transform .08s ease}
+  transition:border-color .12s ease,background .12s ease,transform .08s ease}
 .navb:hover{border-color:var(--gs);background:var(--gs-w);transform:translateX(1px)}
 .navb .ic{width:22px;height:22px;border-radius:5px;background:var(--gs-w);color:var(--gs);display:grid;place-items:center;
   font-size:var(--text-sm);font-family:var(--font-mono);font-weight:var(--weight-bold);flex:none}
@@ -109,7 +113,7 @@ button.act.ghost:hover{background:var(--sunk);border-color:var(--ln2)}
 .navb .sb{font-size:var(--text-xs);color:var(--mut);display:block;margin-top:1px}
 
 /* ---------- prow: fila de programa ---------- */
-.prow{width:100%;text-align:left;background:var(--pane);border:1px solid var(--ln);border-radius:5px;
+.prow{width:100%;text-align:left;background:var(--surface);border:1px solid var(--border);border-radius:5px;
   padding:7px 9px;margin-bottom:4px;cursor:pointer;font-family:var(--font-sans);
   display:grid;grid-template-columns:24px minmax(0,1fr) auto;gap:8px;align-items:center;
   transition:border-color .12s ease,transform .08s ease}
@@ -124,9 +128,9 @@ button.act.ghost:hover{background:var(--sunk);border-color:var(--ln2)}
 .fld{margin-bottom:10px}
 .fld label{display:block;font-size:var(--text-sm);font-weight:var(--weight-semibold);color:var(--ink2);margin-bottom:3px}
 .fld .in{display:flex}
-.fld input{flex:1;min-width:0;border:1px solid var(--ln2);border-radius:4px 0 0 4px;padding:6px 8px;
-  font-size:var(--text-md);font-family:var(--font-mono);background:var(--pane);color:var(--ink);text-align:right}
-.fld .un{border:1px solid var(--ln2);border-left:none;border-radius:0 4px 4px 0;padding:6px 7px;
+.fld input{flex:1;min-width:0;border:1px solid var(--border-strong);border-radius:4px 0 0 4px;padding:6px 8px;
+  font-size:var(--text-md);font-family:var(--font-mono);background:var(--surface);color:var(--ink);text-align:right}
+.fld .un{border:1px solid var(--border-strong);border-left:none;border-radius:0 4px 4px 0;padding:6px 7px;
   font-size:var(--text-xs);color:var(--mut);background:var(--sunk);font-family:var(--font-mono);white-space:nowrap}
 .fld .hp{font-size:var(--text-xs);color:var(--mut);margin-top:3px;line-height:1.4}
 .fld input{transition:border-color .12s ease,background .12s ease}
@@ -134,7 +138,7 @@ button.act.ghost:hover{background:var(--sunk);border-color:var(--ln2)}
 .fld.dirty input{border-color:var(--wn);background:var(--wn-w)}
 
 /* ---------- kpi ---------- */
-.kpi{background:var(--pane);border:1px solid var(--ln);border-radius:6px;padding:9px 11px;margin-bottom:6px;box-shadow:var(--shd)}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:9px 11px;margin-bottom:6px}
 .kpi .kl{font-size:var(--text-xs);color:var(--mut);margin-bottom:1px}
 .kpi .kv{font-size:var(--text-2xl);font-weight:var(--weight-semibold);letter-spacing:-.02em}
 .kpi .ku{font-size:var(--text-xs);color:var(--mut);font-weight:var(--weight-regular);margin-left:3px}
@@ -144,9 +148,9 @@ button.act.ghost:hover{background:var(--sunk);border-color:var(--ln2)}
 /* ---------- tabla comparativa ---------- */
 table.cmp{width:100%;border-collapse:collapse;font-size:var(--text-sm)}
 table.cmp th{text-align:left;font-size:var(--text-2xs);letter-spacing:.05em;text-transform:uppercase;color:var(--fnt);
-  padding:5px 4px;border-bottom:1px solid var(--ln2);font-weight:var(--weight-semibold)}
+  padding:5px 4px;border-bottom:1px solid var(--border-strong);font-weight:var(--weight-semibold)}
 table.cmp th.c,table.cmp td.c{text-align:right;font-family:var(--font-mono)}
-table.cmp td{padding:6px 4px;border-bottom:1px solid var(--ln);color:var(--ink2)}
+table.cmp td{padding:6px 4px;border-bottom:1px solid var(--border);color:var(--ink2)}
 table.cmp td.k{color:var(--ink);font-weight:var(--weight-medium);font-family:var(--font-sans)}
 table.cmp tbody tr{transition:background .12s ease}
 table.cmp tbody tr:hover{background:var(--sunk)}
@@ -160,11 +164,11 @@ table.cmp tbody tr:hover{background:var(--sunk)}
 
 /* ---------- estado de carga ---------- */
 .load{padding:32px 12px;text-align:center;color:var(--mut);font-size:var(--text-md)}
-.load .spin{width:22px;height:22px;margin:0 auto 10px;border-radius:50%;border:2.5px solid var(--ln2);
+.load .spin{width:22px;height:22px;margin:0 auto 10px;border-radius:50%;border:2.5px solid var(--border-strong);
   border-top-color:var(--gs);animation:spin .7s linear infinite}
 
 /* ---------- subnav ---------- */
-.subnav{display:flex;border:1px solid var(--ln);border-radius:5px;background:var(--pane);margin-bottom:10px;overflow:hidden}
+.subnav{display:flex;border:1px solid var(--border);border-radius:5px;background:var(--surface);margin-bottom:10px;overflow:hidden}
 .subnav button{flex:1;background:none;border:none;padding:7px 4px;font-size:var(--text-sm);color:var(--mut);cursor:pointer;
   font-family:var(--font-sans);transition:background .12s ease,color .12s ease}
 .subnav button.on{background:var(--gs-w);color:var(--gs);font-weight:var(--weight-semibold)}

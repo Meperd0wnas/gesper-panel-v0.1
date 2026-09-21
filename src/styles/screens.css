@@ -9,6 +9,6 @@
 .yr{display:grid;grid-template-columns:44px repeat(5,minmax(0,1fr));gap:3px;margin-bottom:4px;align-items:center}
 .yr .yl{font-family:var(--font-mono);font-size:var(--text-2xs);color:var(--fnt);text-align:right;padding-right:3px}
 .yr .yh{font-family:var(--font-mono);font-size:var(--text-2xs);color:var(--fnt);text-align:center}
-.yr input{border:1px solid var(--ln2);border-radius:3px;padding:5px 3px;font-size:var(--text-xs);font-family:var(--font-mono);
-  text-align:right;background:var(--pane);color:var(--ink);min-width:0;width:100%}
+.yr input{border:1px solid var(--border-strong);border-radius:3px;padding:5px 3px;font-size:var(--text-xs);font-family:var(--font-mono);
+  text-align:right;background:var(--surface);color:var(--ink);min-width:0;width:100%}
 .yr input.dirty{border-color:var(--wn);background:var(--wn-w)}
