@@ -78,11 +78,7 @@ body{background:var(--canvas);color:var(--ink);font-family:var(--font-sans);font
 .brandbar{height:3px;flex:none;background:linear-gradient(90deg,var(--gs),var(--ac))}
 
 header{background:var(--surface);border-bottom:1px solid var(--border);padding:9px 12px;display:flex;align-items:center;gap:8px;flex:none}
-header .lg{width:23px;height:23px;border-radius:var(--radius-md);background:linear-gradient(135deg,var(--gs),var(--ac));color:#fff;
-  display:grid;place-items:center;font-size:var(--text-sm);font-weight:var(--weight-bold);font-family:var(--font-mono);flex:none;box-shadow:var(--shadow-sm)}
-/* Modo oscuro desactivado a pedido del usuario (2026-09-21) — ver tokens.css.
-@media (prefers-color-scheme: dark){header .lg{color:#101816}}
-*/
+header .lg{width:23px;height:23px;display:block;object-fit:contain;flex:none;box-shadow:var(--shadow-sm)}
 header b{font-size:var(--text-lg);letter-spacing:-.01em}
 header .ver{margin-left:auto;font-family:var(--font-mono);font-size:var(--text-xs);color:var(--fnt)}
 header button.rf{display:inline-flex;align-items:center;gap:5px;background:none;border:1px solid var(--border-strong);border-radius:5px;

@@ -43,15 +43,23 @@
   --border:#E8EEEC;
   --border-strong:#D2DCD9;
 
-  /* ---------- Interaccion: azul primario ---------- */
-  --primary:#1B63C7;
-  --primary-wash:#E7F0FC;
-  --primary-dark:#144D9E;
+  /* ---------- Interaccion: azul primario ----------
+     Valor exacto muestreado del logo Dual (assets/Dual-Logo.png, color
+     solido de las letras "d/u/l"). --primary-wash/--primary-dark se
+     recalcularon desde este nuevo valor base con la misma formula que
+     ya usaba el sistema (wash = mezcla 10% color + 90% blanco; dark =
+     oscurecer ~18%), no son valores elegidos a mano. */
+  --primary:#063F5C;
+  --primary-wash:#E6ECEF;
+  --primary-dark:#05344B;
 
-  /* ---------- Marca: naranja, reservado a branding (no a controles interactivos) ---------- */
-  --brand:#C1440E;
-  --brand-wash:#FCEAE0;
-  --brand-dark:#9E370A;
+  /* ---------- Marca: naranja, reservado a branding (no a controles interactivos) ----------
+     Valor exacto muestreado del logo Dual (color solido del texto
+     "INGENIERÍA HIDRÁULICA" y del extremo superior del degradado de la
+     "a"). Misma formula de wash/dark que --primary. */
+  --brand:#FD8916;
+  --brand-wash:#FFF3E8;
+  --brand-dark:#CF7012;
 
   /* ---------- Estado ---------- */
   --ok:#1E7A4D; --ok-w:#DEF2E7;
@@ -167,13 +175,13 @@
   --border:#27332F;
   --border-strong:#35443F;
 
-  --primary:#6EA8F2;
-  --primary-wash:#132842;
-  --primary-dark:#9AC2F7;
+  --primary:#49BAF3;
+  --primary-wash:#113446;
+  --primary-dark:#87D1F7;
 
-  --brand:#E8834A;
-  --brand-wash:#3A2410;
-  --brand-dark:#F2A26C;
+  --brand:#EF9E4D;
+  --brand-wash:#452B12;
+  --brand-dark:#F5BF8A;
 
   --ok:#5DBB8E; --ok-w:#14301F;
   --wn:#D9A945; --wn-w:#33280F;
