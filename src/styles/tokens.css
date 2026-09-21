@@ -1,0 +1,30 @@
+/**
+ * tokens.css — variables reutilizables del panel: colores, tipografia,
+ * tamanos, radios y sombras. Extraido 1:1 del <style> inline que vivia en
+ * src/taskpane.html; los valores no se modificaron en esta extraccion.
+ */
+
+:root{
+  --gs:#1B63C7; --gs-w:#E7F0FC; --gs-dk:#144D9E;
+  --ac:#C1440E; --ac-w:#FCEAE0; --ac-dk:#9E370A;
+  --ok:#1E7A4D; --ok-w:#DEF2E7;
+  --wn:#96650D; --wn-w:#FCF0DA;
+  --cr:#A93A2B; --cr-w:#FAE3E0;
+  --pane:#FFFFFF; --pane2:#F5F7F6; --sunk:#EBEFEE;
+  --ink:#1A2320; --ink2:#3D4A46; --mut:#6A7975; --fnt:#96A29E;
+  --ln:#DCE2E0; --ln2:#C4CECB;
+  --shd:0 1px 2px rgba(20,30,28,.05), 0 1px 1px rgba(20,30,28,.04);
+  --mono:Consolas,"Courier New",monospace;
+  --ui:"Segoe UI",system-ui,-apple-system,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root{
+  --gs:#6EA8F2; --gs-w:#132842; --gs-dk:#9AC2F7;
+  --ac:#E8834A; --ac-w:#3A2410; --ac-dk:#F2A26C;
+  --ok:#5DBB8E; --ok-w:#14301F;
+  --wn:#D9A945; --wn-w:#33280F;
+  --cr:#E0705C; --cr-w:#38201C;
+  --pane:#151D1B; --pane2:#1B2422; --sunk:#101816;
+  --ink:#E6EDEA; --ink2:#BFCCC8; --mut:#8D9C98; --fnt:#6B7A76;
+  --ln:#27332F; --ln2:#35443F;
+  --shd:0 1px 2px rgba(0,0,0,.25);
+}}

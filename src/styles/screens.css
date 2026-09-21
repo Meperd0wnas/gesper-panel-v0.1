@@ -1,0 +1,14 @@
+/**
+ * screens.css — estilos de layout propios de una pantalla concreta (no
+ * reutilizables entre pantallas). Extraido 1:1 del <style> inline que vivia
+ * en src/taskpane.html; los estilos no se modificaron en esta extraccion.
+ * Requiere las variables definidas en tokens.css.
+ */
+
+/* ---------- Datos → formulario P.9 (grilla de años) ---------- */
+.yr{display:grid;grid-template-columns:44px repeat(5,minmax(0,1fr));gap:3px;margin-bottom:4px;align-items:center}
+.yr .yl{font-family:var(--mono);font-size:9.5px;color:var(--fnt);text-align:right;padding-right:3px}
+.yr .yh{font-family:var(--mono);font-size:9px;color:var(--fnt);text-align:center}
+.yr input{border:1px solid var(--ln2);border-radius:3px;padding:5px 3px;font-size:10.5px;font-family:var(--mono);
+  text-align:right;background:var(--pane);color:var(--ink);min-width:0;width:100%}
+.yr input.dirty{border-color:var(--wn);background:var(--wn-w)}
