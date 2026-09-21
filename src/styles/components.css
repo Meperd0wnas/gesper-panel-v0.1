@@ -14,11 +14,36 @@
  * box-shadow:var(--shd) se quito de .card/.kpi/.idc/.sig/.navb — superficies
  * estaticas sin elevacion real — y solo queda, renombrado a --shadow-sm, en
  * header .lg. Ver informe de Fase 2C para el detalle por selector.
+ *
+ * Fase 2D: font-family/cursor/transition de los controles interactivos
+ * (button.act, header button.rf, nav button, .navb, .prow, .subnav button)
+ * se consolidaron en una regla compartida al inicio del archivo.
+ * button.act.primary paso de --ac (marca) a --gs (interaccion) — cambio
+ * visual real, ver informe de Fase 2D. .prow:hover gano fondo --gs-w y
+ * .subnav button gano :hover — antes no tenian, ahora igualan a .navb.
+ * button.act tambien conecta su border-radius:4px a --radius-sm (valor
+ * exacto). header button.rf/.navb/.prow/.subnav siguen en 5px literal —
+ * no hay token de 5px, no se fuerza. Nada mas cambio de valor.
  */
 
 /* ---------- base ---------- */
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
+
+/* ---------- familia de controles interactivos: base compartida ----------
+   Fase 2D. font-family/cursor/transition consolidados aqui; cada control
+   conserva su color, padding, layout y estado propio en su propia regla
+   mas abajo. Ver informe de Fase 2D para el detalle por control. */
+button.act,
+header button.rf,
+nav button,
+.navb,
+.prow,
+.subnav button{
+  font-family:var(--font-sans);
+  cursor:pointer;
+  transition:background .12s ease,border-color .12s ease,color .12s ease,transform .08s ease;
+}
 body{background:var(--canvas);color:var(--ink);font-family:var(--font-sans);font-size:var(--text-lg);line-height:var(--leading-normal);
   display:flex;flex-direction:column;overflow:hidden}
 ::-webkit-scrollbar{width:9px;height:9px}
@@ -36,8 +61,7 @@ header .lg{width:23px;height:23px;border-radius:var(--radius-md);background:line
 header b{font-size:var(--text-lg);letter-spacing:-.01em}
 header .ver{margin-left:auto;font-family:var(--font-mono);font-size:var(--text-xs);color:var(--fnt)}
 header button.rf{display:inline-flex;align-items:center;gap:5px;background:none;border:1px solid var(--border-strong);border-radius:5px;
-  padding:4px 9px;font-size:var(--text-sm);color:var(--gs);cursor:pointer;font-family:var(--font-sans);font-weight:var(--weight-semibold);
-  transition:background .12s ease,border-color .12s ease}
+  padding:4px 9px;font-size:var(--text-sm);color:var(--gs);font-weight:var(--weight-semibold)}
 header button.rf:hover{background:var(--gs-w);border-color:var(--gs)}
 header button.rf .ic{transition:transform .5s ease;flex:none}
 header button.rf.spin .ic{animation:spin .8s linear infinite}
@@ -46,8 +70,7 @@ header button.rf.spin .ic{animation:spin .8s linear infinite}
 nav{display:flex;background:var(--surface);border-bottom:1px solid var(--border);overflow-x:auto;flex:none}
 nav button{flex:1 0 auto;background:none;border:none;border-bottom:2px solid transparent;padding:7px 3px 6px;
   display:flex;flex-direction:column;align-items:center;gap:3px;
-  font-size:var(--text-2xs);color:var(--mut);cursor:pointer;font-family:var(--font-sans);white-space:nowrap;
-  transition:color .12s ease,border-color .12s ease}
+  font-size:var(--text-2xs);color:var(--mut);white-space:nowrap}
 nav button svg{width:15px;height:15px;flex:none}
 nav button.on{color:var(--gs);border-bottom-color:var(--ac);font-weight:var(--weight-bold)}
 nav button:hover{color:var(--ink)}
@@ -85,14 +108,20 @@ footer.ok{color:var(--ok);background:var(--ok-w)}
 .sig .ds b{color:var(--ink2)}
 code{font-family:var(--font-mono);font-size:var(--text-xs);background:var(--sunk);padding:1px 4px;border-radius:2px;color:var(--ink2)}
 
-/* ---------- botones ---------- */
-button.act{margin-top:6px;background:none;border:1px solid var(--border-strong);border-radius:4px;padding:4px 9px;
-  font-size:var(--text-xs);color:var(--gs);cursor:pointer;font-family:var(--font-sans);font-weight:var(--weight-semibold);
-  transition:background .12s ease,border-color .12s ease,transform .08s ease}
+/* ---------- botones ----------
+   Fase 2D: .act.primary pasa de --ac (naranja/marca) a --gs (azul,
+   interaccion) — sus dos unicos usos reales (Guardar, Ejecutar
+   diagnostico) son la accion principal de una pantalla, no un momento de
+   marca; el naranja queda reservado al brandbar/logo/subrayado del tab
+   activo. .act.ghost se queda en --mut a proposito: su unico uso real es
+   "Descartar", donde un tono neutro es mejor que un texto en azul
+   primario — ver informe de Fase 2D. */
+button.act{margin-top:6px;background:none;border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:4px 9px;
+  font-size:var(--text-xs);color:var(--gs);font-weight:var(--weight-semibold)}
 button.act:hover{background:var(--gs-w);border-color:var(--gs)}
 button.act:active{transform:scale(.97)}
-button.act.primary{color:#fff;background:var(--ac);border-color:var(--ac)}
-button.act.primary:hover{background:var(--ac-dk);border-color:var(--ac-dk)}
+button.act.primary{color:#fff;background:var(--gs);border-color:var(--gs)}
+button.act.primary:hover{background:var(--gs-dk);border-color:var(--gs-dk)}
 button.act.ghost{color:var(--mut);border-color:var(--border-strong)}
 button.act.ghost:hover{background:var(--sunk);border-color:var(--border-strong)}
 
@@ -104,8 +133,7 @@ button.act.ghost:hover{background:var(--sunk);border-color:var(--border-strong)}
 
 /* ---------- navb: boton de navegacion en bloque ---------- */
 .navb{width:100%;text-align:left;background:var(--surface);border:1px solid var(--border);border-radius:5px;
-  padding:9px 10px;margin-bottom:5px;cursor:pointer;font-family:var(--font-sans);display:flex;align-items:center;gap:9px;
-  transition:border-color .12s ease,background .12s ease,transform .08s ease}
+  padding:9px 10px;margin-bottom:5px;display:flex;align-items:center;gap:9px}
 .navb:hover{border-color:var(--gs);background:var(--gs-w);transform:translateX(1px)}
 .navb .ic{width:22px;height:22px;border-radius:5px;background:var(--gs-w);color:var(--gs);display:grid;place-items:center;
   font-size:var(--text-sm);font-family:var(--font-mono);font-weight:var(--weight-bold);flex:none}
@@ -114,10 +142,9 @@ button.act.ghost:hover{background:var(--sunk);border-color:var(--border-strong)}
 
 /* ---------- prow: fila de programa ---------- */
 .prow{width:100%;text-align:left;background:var(--surface);border:1px solid var(--border);border-radius:5px;
-  padding:7px 9px;margin-bottom:4px;cursor:pointer;font-family:var(--font-sans);
-  display:grid;grid-template-columns:24px minmax(0,1fr) auto;gap:8px;align-items:center;
-  transition:border-color .12s ease,transform .08s ease}
-.prow:hover{border-color:var(--gs);transform:translateX(1px)}
+  padding:7px 9px;margin-bottom:4px;
+  display:grid;grid-template-columns:24px minmax(0,1fr) auto;gap:8px;align-items:center}
+.prow:hover{border-color:var(--gs);background:var(--gs-w);transform:translateX(1px)}
 .prow .pn{font-family:var(--font-mono);font-size:var(--text-xs);color:var(--fnt)}
 .prow .pl{font-size:var(--text-sm);color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .prow .pb{font-family:var(--font-mono);font-size:var(--text-sm);font-weight:var(--weight-bold)}
@@ -169,8 +196,8 @@ table.cmp tbody tr:hover{background:var(--sunk)}
 
 /* ---------- subnav ---------- */
 .subnav{display:flex;border:1px solid var(--border);border-radius:5px;background:var(--surface);margin-bottom:10px;overflow:hidden}
-.subnav button{flex:1;background:none;border:none;padding:7px 4px;font-size:var(--text-sm);color:var(--mut);cursor:pointer;
-  font-family:var(--font-sans);transition:background .12s ease,color .12s ease}
+.subnav button{flex:1;background:none;border:none;padding:7px 4px;font-size:var(--text-sm);color:var(--mut)}
+.subnav button:hover{background:var(--sunk)}
 .subnav button.on{background:var(--gs-w);color:var(--gs);font-weight:var(--weight-semibold)}
 
 /* ---------- accesibilidad: foco visible ---------- */
