@@ -74,11 +74,16 @@
   --weight-bold:700;
 
   /* ---------- Tipografia: interlineado ----------
-     Solo se tokenizan los dos valores que ya se repetian en mas de un
-     selector. .fld .hp (1.4) y .idc .mt (1.65) quedan como literales de
-     un solo uso — ver informe de Fase 2B, punto 8. */
+     Solo se tokenizan los valores que se repiten en mas de un selector.
+     .fld .hp (1.4) y .idc .mt (1.65) quedan como literales de un solo uso
+     — ver informe de Fase 2B, punto 8. --leading-loose se agrego en Fase
+     2F: los 3 bloques de texto libre de Alternativas (render.js) usaban
+     line-height:1.7 identico via style inline — se consolido en un token
+     porque se repite 3 veces, mismo umbral que Fase 2B uso para --leading-
+     relaxed. */
   --leading-normal:1.5;
   --leading-relaxed:1.45;
+  --leading-loose:1.7;
 
   /* ---------- Spacing ----------
      Escala de referencia (4/8/12/16/24). Todavia NO esta conectada a

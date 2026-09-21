@@ -134,7 +134,7 @@ export function pintaEstado() {
 
 /* ---------- PANTALLA: NAVEGAR ---------- */
 export function pintaNavegar() {
-  var h = '<div class="card" style="border-left:3px solid var(--gs)"><h4>Seis bloques, no 49 hojas</h4>' +
+  var h = '<div class="card accent"><h4>Seis bloques, no 49 hojas</h4>' +
     '<p>El libro tiene ' + state.hojasLibro.length + ' hojas y la mayoría están ocultas. El panel las agrupa por lo que hacen, las muestra si hace falta y las abre en el punto correcto.</p></div>';
   h += '<div class="sec">Ir a</div>';
   BLOQUES.forEach(function (b, i) {
@@ -159,8 +159,8 @@ export function filaPrograma(p) {
   var cls = p.bc === null ? "n" : (p.bc >= 1 ? "g" : "r");
   var txt = p.bc === null ? "—" : fmt(p.bc, 2);
   var sub = "";
-  if (p.nota) sub = '<span class="sub" style="color:var(--mut)">' + esc(p.nota) + '</span>';
-  else if (p.bc === 0) sub = '<span class="sub" style="color:var(--wn)">Sin datos — 0 beneficio, 0 costo</span>';
+  if (p.nota) sub = '<span class="sub text-muted">' + esc(p.nota) + '</span>';
+  else if (p.bc === 0) sub = '<span class="sub text-warning">Sin datos — 0 beneficio, 0 costo</span>';
   return '<button class="prow" data-prog="' + p.n + '"><span class="pn">P.' + p.n + '</span>' +
     '<span class="pl">' + esc(p.nombre.replace(/^P\.\s*\d+\s*/, "")) + '</span>' +
     '<span class="pb ' + cls + '">' + txt + '</span>' + sub + '</button>';
@@ -175,7 +175,7 @@ export function pintaFormP9() {
   var nue = D.p9nue ? D.p9nue.v[0] : [];
   var an = D.p9anios ? D.p9anios.t[0] : [];
 
-  var h = '<button class="act" style="margin-bottom:10px" data-volver="1">← Volver a los programas</button>';
+  var h = '<button class="act back" data-volver="1">← Volver a los programas</button>';
   h += '<div class="sec">P.9 · Renovación de medidores</div>';
 
   h += fld("f_a", "Edad actual del parque de medidores", a, "años",
@@ -190,9 +190,9 @@ export function pintaFormP9() {
   h += '<div class="sec">Medidores para usuarios nuevos <code>F198:J198</code></div>';
   h += filaAnios("n", an, nue);
 
-  h += '<div style="display:flex;gap:6px;margin-top:12px">' +
-    '<button class="act primary" id="btnGuardar" style="flex:1;padding:8px;font-size:12px;margin-top:0">Guardar en el libro</button>' +
-    '<button class="act ghost" id="btnDescartar" style="padding:8px 10px;margin-top:0">Descartar</button></div>';
+  h += '<div class="btn-row">' +
+    '<button class="act primary lg" id="btnGuardar" style="flex:1;font-size:12px">Guardar en el libro</button>' +
+    '<button class="act ghost lg" id="btnDescartar">Descartar</button></div>';
   h += '<div class="flag">En el archivo estos campos están repartidos en cuatro tramos separados entre las filas 181 y 246 de una hoja de 458 filas. El panel nunca escribe sobre una celda que contenga una fórmula.</div>';
 
   $("s-datos").innerHTML = h;
@@ -243,7 +243,7 @@ export function pintaResultados() {
     h += '<div class="kpi"><div class="kl">IPUF promedio del horizonte · Alternativa 2</div><div class="kv">' +
       (hid.ipufPromedio !== null ? fmt(hid.ipufPromedio, 2) : "—") + '<span class="ku">m³/susc·mes</span></div>' +
       '<div class="ks">Alternativas!M62:V62 · meta ' + (hid.metaIPUF !== null ? fmt(hid.metaIPUF, 1) : "—") + '</div>' +
-      (hid.cumpleMeta !== null ? '<div class="nt" style="color:' + (hid.cumpleMeta ? "var(--ok)" : "var(--cr)") + '">' +
+      (hid.cumpleMeta !== null ? '<div class="nt ' + (hid.cumpleMeta ? "text-ok" : "text-critical") + '">' +
         (hid.cumpleMeta ? "Cumple la meta de la empresa." : "No alcanza la meta de la empresa.") + '</div>' : "") + '</div>';
     h += sparkIPUF(hid);
     if (hid.ianc.inicio !== null) {
@@ -338,7 +338,7 @@ export function pintaAlt() {
   function vd(c) { return c === null ? "—" : '<span class="vd ' + (c ? "y" : "n") + '">' + (c ? "SÍ" : "NO") + '</span>'; }
   function bcCel(x) {
     if (x === null) return "—";
-    return '<span style="color:' + (x >= 1 ? "var(--ok)" : "var(--cr)") + ';font-weight:700">' + fmt(x, 2) + '</span>';
+    return '<span class="' + (x >= 1 ? "text-ok" : "text-critical") + ' value-emphasis">' + fmt(x, 2) + '</span>';
   }
 
   var h = '<div class="sec">Comparación</div><table class="cmp"><thead><tr><th></th>' +
@@ -348,21 +348,21 @@ export function pintaAlt() {
   h += '<tr><td class="k">Relación B/C</td><td class="c">' + bcCel(A1.bc) + '</td><td class="c">' + bcCel(A2.bc) + '</td><td class="c">' + bcCel(A3.bc) + '</td></tr>';
   h += '<tr><td class="k">IPUF promedio</td><td class="c">' + (i1 !== null ? fmt(i1, 2) : "—") + '</td><td class="c">' + (i2 !== null ? fmt(i2, 2) : "—") + '</td><td class="c">—</td></tr>';
   h += '<tr><td class="k">Meta IPUF</td><td class="c">' + vd(c1) + '</td><td class="c">' + vd(c2) + '</td><td class="c">' + vd(c3) + '</td></tr>';
-  h += '</tbody></table><p style="font-size:10px;color:var(--fnt);font-family:var(--mono);margin:6px 0 0">cifras en millones de pesos corrientes</p>';
+  h += '</tbody></table><p class="note">cifras en millones de pesos corrientes</p>';
 
   h += '<div class="flag gs"><b>La Alternativa 2 es la que alimenta el consolidado financiero.</b> Es la fila 49 de la hoja Alternativas la que gobierna todo lo que viene después.</div>';
 
   h += '<div class="sec">Alternativa 1 · propuesta por el motor</div>';
-  h += '<div class="card"><div class="v" style="font-size:11px;line-height:1.7">' +
+  h += '<div class="card"><div class="v desc">' +
     (D.selA1 ? (esc(D.selA1.t[0][0]) || "sin elegir") : "—") + '</div></div>';
   h += '<div class="sec">Alternativa 2 · compuesta a mano</div>';
-  h += '<div class="card"><div class="v" style="font-size:11px;line-height:1.7">' +
+  h += '<div class="card"><div class="v desc">' +
     (D.a2txt ? (esc(D.a2txt.t[0][0]) || "sin componer") : "—") + '</div></div>';
   h += '<div class="sec">Alternativa 3</div>';
-  h += '<div class="card"><div class="v" style="font-size:11px;line-height:1.7">' +
+  h += '<div class="card"><div class="v desc">' +
     (D.a3txt ? (esc(D.a3txt.t[0][0]) || "sin componer") : "—") + '</div></div>';
 
-  h += '<button class="act" style="margin-top:10px;width:100%;padding:8px" data-hoja="' + esc(H.ALT) + '" data-addr="A4">Abrir la hoja Alternativas</button>';
+  h += '<button class="act lg block" style="margin-top:10px" data-hoja="' + esc(H.ALT) + '" data-addr="A4">Abrir la hoja Alternativas</button>';
   $("s-alt").innerHTML = h;
 }
 
@@ -370,7 +370,7 @@ export function pintaAlt() {
 export function pintaDiag() {
   var h = '<div class="sec">Diagnóstico de conexión</div>';
   h += '<div class="card"><p>Comprueba que el panel puede leer y escribir en este libro, usando una hoja de trabajo propia y desechable (<code>GESPER_DIAG_TEMP</code>). No toca ninguna hoja del modelo.</p></div>';
-  h += '<button class="act primary" id="btnDiag" style="width:100%;padding:8px;margin-bottom:8px">Ejecutar prueba de conexión</button>';
+  h += '<button class="act primary lg block" id="btnDiag" style="margin-bottom:8px">Ejecutar prueba de conexión</button>';
   h += '<div id="diagOut"></div>';
   $("s-diag").innerHTML = h;
 }

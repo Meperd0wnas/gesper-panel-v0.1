@@ -34,6 +34,18 @@
  * "no es un error" y se pintaba en ambar. El otro uso de .kpi .nt siempre
  * sobreescribe el color inline, no se ve afectado. Ver informe de Fase 2E
  * para el resto de la auditoria (.flag, .vd) y por que no se tocaron.
+ *
+ * Fase 2F: consolidacion de estilos inline de src/app/render.js hacia
+ * clases. Nuevas: .card.accent, .card .v.desc, .text-muted/.text-warning/
+ * .text-ok/.text-critical, .value-emphasis, .kpi .nt.text-ok/.text-critical
+ * (compuestas, para ganarle especificidad al color por defecto de .kpi
+ * .nt), .note, button.act.back/.lg/.block, .btn-row. De 16 estilos inline
+ * en render.js quedaron 4: el <svg> del sparkline (dimensionamiento SVG,
+ * fuera del sistema CSS general), font-size:12px y flex:1 en btnGuardar
+ * (unico boton de los 3 "grandes" que los tenia — no se metieron en .lg
+ * porque habria cambiado tamano/layout de los otros dos), y un margin
+ * residual en cada uno de los otros dos botones grandes (10px/8px,
+ * distintos entre si, no comparten valor). Ver informe de Fase 2F.
  */
 
 /* ---------- base ---------- */
@@ -136,10 +148,28 @@ button.act.primary:hover{background:var(--gs-dk);border-color:var(--gs-dk)}
 button.act.ghost{color:var(--mut);border-color:var(--border-strong)}
 button.act.ghost:hover{background:var(--sunk);border-color:var(--border-strong)}
 
+/* ---------- botones: variantes de tamano/layout ----------
+   Fase 2F: consolidan estilos inline repetidos de render.js. .lg es el
+   boton de accion principal de una pantalla (padding:8px, repetido 3
+   veces via style). Solo btnGuardar tenia ademas font-size:12px y
+   flex:1 inline — los otros dos no (Descartar se dimensiona a su propio
+   contenido, no crece; los botones sueltos no estan en un flex row) — asi
+   que esas dos propiedades NO se metieron en clases compartidas y se
+   dejaron como residuo inline solo en btnGuardar. .block da ancho
+   completo a un boton suelto (fuera de .btn-row). .back es el unico uso
+   real de "volver" (Datos · P.9). */
+button.act.back{margin-bottom:10px}
+button.act.lg{padding:8px}
+button.act.block{width:100%}
+.btn-row{display:flex;gap:6px;margin-top:var(--space-3)}
+.btn-row .act{margin-top:0}
+
 /* ---------- card ---------- */
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:10px 11px;margin-bottom:7px}
+.card.accent{border-left:3px solid var(--gs)}
 .card h4{margin:0 0 2px;font-size:var(--text-sm);font-weight:var(--weight-semibold);color:var(--ink2)}
 .card .v{font-family:var(--font-mono);font-size:var(--text-lg);color:var(--ink)}
+.card .v.desc{font-size:var(--text-sm);line-height:var(--leading-loose)}
 .card p{margin:3px 0 0;font-size:var(--text-sm);color:var(--mut)}
 
 /* ---------- navb: boton de navegacion en bloque ---------- */
@@ -182,6 +212,8 @@ button.act.ghost:hover{background:var(--sunk);border-color:var(--border-strong)}
 .kpi .ku{font-size:var(--text-xs);color:var(--mut);font-weight:var(--weight-regular);margin-left:3px}
 .kpi .ks{font-family:var(--font-mono);font-size:var(--text-2xs);color:var(--fnt);margin-top:2px}
 .kpi .nt{font-size:var(--text-xs);color:var(--mut);margin-top:3px}
+.kpi .nt.text-ok{color:var(--ok)}
+.kpi .nt.text-critical{color:var(--cr)}
 
 /* ---------- tabla comparativa ---------- */
 table.cmp{width:100%;border-collapse:collapse;font-size:var(--text-sm)}
@@ -199,6 +231,21 @@ table.cmp tbody tr:hover{background:var(--sunk)}
 .flag{background:var(--wn-w);border-left:3px solid var(--wn);padding:8px 10px;border-radius:4px;
   font-size:var(--text-xs);color:var(--ink2);margin-top:9px;line-height:var(--leading-relaxed)}
 .flag.gs{background:var(--gs-w);border-left-color:var(--gs)}
+
+/* ---------- utilidades de texto ----------
+   Fase 2F: reemplazan estilos inline de render.js que coloreaban texto
+   segun un estado conocido (ok/advertencia/critico/neutro) o marcaban un
+   valor como destacado. Los 4 colores y el peso ya se usaban inline en
+   varios sitios (.prow .sub, .kpi .nt, el B/C de Alternativas); esto solo
+   les da nombre, no agrega estados nuevos. */
+.text-muted{color:var(--mut)}
+.text-warning{color:var(--wn)}
+.text-ok{color:var(--ok)}
+.text-critical{color:var(--cr)}
+.value-emphasis{font-weight:var(--weight-bold)}
+
+/* ---------- note: caption monoespaciada de una sola linea ---------- */
+.note{font-size:var(--text-xs);color:var(--fnt);font-family:var(--font-mono);margin:6px 0 0}
 
 /* ---------- estado de carga ---------- */
 .load{padding:32px 12px;text-align:center;color:var(--mut);font-size:var(--text-md)}
