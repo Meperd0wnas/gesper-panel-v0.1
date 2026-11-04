@@ -76,3 +76,11 @@ Al introducir `import`/`export` en el código del panel, se unificó todo el pro
 ## 10. Pendiente de decisión del usuario, no resuelto aquí
 
 - El repositorio tiene commiteado un caso real (`CASO_Bucaramanga_plantilla_v2.5.xlsm`, ~2.4 MB) en la raíz. No se tocó ni se movió — no es parte de esta preparación de infraestructura — pero conviene que el usuario decida si un caso de un cliente real debe vivir en el control de versiones o si debería tratarse como dato de prueba/ejemplo y excluirse.
+
+## 11. Carga de anexos: lectura del archivo sin librería
+
+La pantalla **Anexos** lee un archivo que el usuario elige (hoy el Anexo 1, hoja `SALIDA_GESPER`, contrato en `Especificacion_SALIDA_GESPER_v1`) y escribe sus valores en GESPER. Office.js solo da acceso al libro abierto: `Excel.createWorkbook` abre otra ventana fuera del alcance del panel, y `insertWorksheetsFromBase64` metería hojas del anexo dentro de GESPER (y sus fórmulas, que apuntan a otras hojas del anexo, se romperían). Por eso el archivo se lee en el navegador.
+
+Alternativa descartada: SheetJS u otra librería. El proyecto no tiene ninguna dependencia de ejecución y no tiene bundler (§1); habría que versionar un archivo de ~1 MB o cargarlo de un CDN. Lo que se necesita es poco: los valores guardados de una hoja y los nombres definidos. `src/utils/xlsx.js` (~250 líneas) lee el ZIP con el `DecompressionStream` nativo (WebView2, Safari 16.4+, Node 18+) y el XML con expresiones acotadas al formato que escribe Excel. Límites aceptados: no evalúa fórmulas (lee el último resultado guardado, por eso el panel pide "Actualizar todo" y guardar el anexo antes), no soporta `.xls` binario, archivos con contraseña ni ZIP64, y no funciona en Excel 2019 perpetuo con EdgeHTML (no tiene `DecompressionStream`); en esos casos el panel muestra un mensaje claro.
+
+Capas, igual que la lectura del modelo: `utils/xlsx.js` (archivo → celdas) → `domain/anexos/salidaGesper.js` (contrato: estructura, estados, validación de destinos; puro y probado) → `domain/repositories/anexosRepository.js` (compone con `excelService.leerCeldas` para validar y `escribirCampos` para escribir: un lote, un recálculo, guarda anti-fórmula). Lo propio de cada anexo (hoja destino, filas de banderas) vive en `ANEXOS` de `config/cellMap.js`; agregar el A02 debería ser agregar una entrada ahí.

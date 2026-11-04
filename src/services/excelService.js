@@ -62,6 +62,39 @@ export async function leerLibro(lecturas) {
 }
 
 /**
+ * Lee valor, texto y fórmula de varias celdas sueltas de una misma hoja, en
+ * una sola pasada. Pensado para validar destinos antes de escribir (p. ej. la
+ * carga de anexos: etiqueta de la columna B, año de la fila 2 y si la celda
+ * destino tiene fórmula), sin una ida y vuelta a Excel por celda.
+ *
+ * @param {string} hoja
+ * @param {string[]} direcciones celdas sueltas ("B115", "M2", ...)
+ * @returns {Promise<{hojaExiste: boolean, celdas: Object<string,{valor:any, texto:string, formula:any}>}>}
+ *   Si la hoja no existe, `hojaExiste` es false y `celdas` queda vacío.
+ */
+export async function leerCeldas(hoja, direcciones) {
+  const resultado = { hojaExiste: false, celdas: {} };
+  await Excel.run(async (ctx) => {
+    const sh = ctx.workbook.worksheets.getItemOrNullObject(hoja);
+    sh.load("name");
+    await ctx.sync();
+    if (sh.isNullObject) return;
+    resultado.hojaExiste = true;
+
+    const rangos = direcciones.map((addr) => {
+      const rg = sh.getRange(addr);
+      rg.load("values,text,formulas");
+      return [addr, rg];
+    });
+    await ctx.sync();
+    rangos.forEach(([addr, rg]) => {
+      resultado.celdas[addr] = { valor: rg.values[0][0], texto: rg.text[0][0], formula: rg.formulas[0][0] };
+    });
+  });
+  return resultado;
+}
+
+/**
  * Escribe valores en un rango, pero nunca sobre una celda que contenga una
  * fórmula. Es la única función del panel con permiso de escritura sobre el
  * modelo. Delega en escribirCampos (una sola entrada) para no duplicar la

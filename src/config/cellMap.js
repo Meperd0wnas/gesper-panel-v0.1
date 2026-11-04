@@ -83,3 +83,36 @@ export const ANCLAS = {
   17: [H.EVC, "B401", "Telemetría grandes consumidores"],
   18: [H.EVC, "B417", "Software de inteligencia"]
 };
+
+/**
+ * Anexos técnicos que el panel sabe cargar desde su hoja SALIDA_GESPER
+ * (contrato: Especificacion_SALIDA_GESPER_v1, ver domain/anexos/salidaGesper.js).
+ * Las celdas destino las trae cada fila del anexo (DESTINO_CELDA); aquí solo
+ * vive lo que el panel necesita saber de GESPER para validarlas:
+ *  - filaAnios: fila de la hoja destino con el índice relativo de año (0..10)
+ *    de cada columna, que se compara con ANIO_IDX;
+ *  - filasBandera: filas «¿contemplado?», que nunca se escriben desde un anexo;
+ *  - banderasHorizonte: para cada bloque de filas destino, su fila de bandera.
+ *    Un año en "N/A" queda fuera del horizonte y GESPER descarta en silencio
+ *    la cantidad: el panel lo avisa (spec §6 paso 7, §7).
+ * Verificado contra MODELO GESTIÓN PÉRDIDAS _V8_030726.xlsm y
+ * CASO_Bucaramanga_plantilla_v2.5.xlsm (mismas filas en ambos).
+ */
+export const ANEXOS = [
+  {
+    id: "A01",
+    nombre: "Anexo 1 — Macromedición (P1)",
+    programas: ["P1"],
+    hojaDestino: H.EVT,
+    filaAnios: 2,
+    filasBandera: [116, 130, 142, 154, 166, 182, 201, 215, 227, 239, 251, 267, 286, 300, 311, 322, 333, 349],
+    banderasHorizonte: [
+      { desde: 113, hasta: 115, fila: 116 }, // captación · instalación
+      { desde: 177, hasta: 181, fila: 182 }, // captación · reemplazo
+      { desde: 198, hasta: 200, fila: 201 }, // entrada PTAP · instalación
+      { desde: 262, hasta: 266, fila: 267 }, // entrada PTAP · reemplazo
+      { desde: 283, hasta: 285, fila: 286 }, // salida PTAP · instalación
+      { desde: 344, hasta: 348, fila: 349 }  // salida PTAP · reemplazo
+    ]
+  }
+];

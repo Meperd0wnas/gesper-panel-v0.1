@@ -7,12 +7,15 @@ import { H, ANCLAS } from "../config/cellMap.js";
 import { parseNum } from "../utils/format.js";
 import { state } from "./state.js";
 import {
-  pintaTodo, pintaDatos, pintaFormP9, pintaResultados, pintaResultadoDiag, errBox
+  pintaTodo, pintaDatos, pintaFormP9, pintaResultados, pintaResultadoDiag, pintaAnexos, errBox
 } from "./render.js";
 import {
   escribirRango, irA as excelIrA, buscarFilaPorEtiqueta, ejecutarDiagnostico
 } from "../services/excelService.js";
 import { cargarModelo } from "../domain/repositories/modeloRepository.js";
+import {
+  anexoPorId, leerArchivoAnexo, prepararCarga, ejecutarCarga
+} from "../domain/repositories/anexosRepository.js";
 
 function $(id) { return document.getElementById(id); }
 function foot(msg, cls) { var f = $("foot"); f.textContent = msg; f.className = cls || ""; }
@@ -81,6 +84,59 @@ async function guardarP9() {
   } catch (e) { foot(e.message, "err"); }
 }
 
+/* ---------- CARGAR ANEXOS ---------- */
+function reiniciarAnexo(anexoId) {
+  var A = state.anexos;
+  if (anexoId) A.anexoId = anexoId;
+  A.fase = "inicio";
+  A.archivo = A.evaluacion = A.plan = A.resultado = A.error = null;
+  A.confirmado = false;
+}
+
+async function leerAnexo(file) {
+  var A = state.anexos;
+  var anexo = anexoPorId(A.anexoId);
+  reiniciarAnexo();
+  A.fase = "leyendo";
+  A.archivo = { nombre: file.name, tamano: file.size, modificado: file.lastModified ? new Date(file.lastModified) : null };
+  pintaAnexos();
+  foot("Leyendo " + file.name + "…");
+  try {
+    A.evaluacion = await leerArchivoAnexo(await file.arrayBuffer(), anexo);
+    A.plan = await prepararCarga(A.evaluacion, anexo);
+    A.fase = "vista";
+    foot("Anexo leído · " + A.plan.escrituras.length + " datos listos para cargar" +
+      (A.plan.omitidos.length ? " · " + A.plan.omitidos.length + " omitidos" : ""), A.plan.bloqueo ? "err" : "ok");
+  } catch (e) {
+    A.fase = "error";
+    A.error = e && e.message ? e.message : String(e);
+    foot("No pude leer el anexo: " + A.error, "err");
+  }
+  pintaAnexos();
+}
+
+async function cargarAnexo() {
+  var A = state.anexos;
+  var anexo = anexoPorId(A.anexoId);
+  if (!A.plan || (A.plan.requiereConfirmacion && !A.confirmado)) return;
+  A.fase = "cargando";
+  A.error = null;
+  pintaAnexos();
+  foot("Escribiendo en GESPER…");
+  try {
+    A.resultado = await ejecutarCarga(A.evaluacion, anexo);
+    A.plan = A.resultado.plan;
+    A.fase = "resumen";
+    await refrescar();
+    foot("Anexo cargado · " + A.resultado.escritos + " valores escritos · " + A.resultado.cambiados + " cambiaron · recalculado", "ok");
+  } catch (e) {
+    A.fase = "vista";
+    A.error = e && e.message ? e.message : String(e);
+    foot("No se cargó el anexo: " + A.error, "err");
+  }
+  pintaAnexos();
+}
+
 function mostrar(id) {
   state.pantalla = id;
   var s = document.querySelectorAll(".scr");
@@ -117,6 +173,12 @@ document.addEventListener("click", function (ev) {
     return;
   }
 
+  var ax = t.closest ? t.closest("[data-anexo]") : null;
+  if (ax) { reiniciarAnexo(ax.getAttribute("data-anexo")); pintaAnexos(); return; }
+  if (t.id === "btnElegirAnexo") { $("anexoArchivo").click(); return; }
+  if (t.id === "btnAnexoCancelar") { reiniciarAnexo(); pintaAnexos(); foot("Carga cancelada. No se escribió nada."); return; }
+  if (t.id === "btnCargarAnexo") { cargarAnexo(); return; }
+
   if (t.id === "btnRefresh") { refrescar(); return; }
   if (t.id === "btnGuardar") { guardarP9(); return; }
   if (t.id === "btnDescartar") { pintaFormP9(); foot("Cambios descartados."); return; }
@@ -136,9 +198,19 @@ document.addEventListener("click", function (ev) {
 
 document.addEventListener("input", function (ev) {
   var t = ev.target;
-  if (t.tagName === "INPUT") {
+  if (t.tagName === "INPUT" && t.type === "text") {
     if (t.closest(".fld")) t.closest(".fld").className = "fld dirty";
     else t.className = "dirty";
+  }
+});
+
+document.addEventListener("change", function (ev) {
+  var t = ev.target;
+  if (t.id === "anexoArchivo" && t.files && t.files[0]) { var f = t.files[0]; t.value = ""; leerAnexo(f); return; }
+  if (t.id === "anxConfirma") {
+    state.anexos.confirmado = t.checked;
+    var b = $("btnCargarAnexo");
+    if (b) b.disabled = !t.checked;
   }
 });
 
@@ -148,5 +220,6 @@ Office.onReady(function (info) {
     document.body.innerHTML = '<div class="load">Este panel solo funciona dentro de Excel.</div>';
     return;
   }
+  pintaAnexos(); // no depende de la lectura del modelo: queda disponible aunque esta falle
   refrescar();
 });

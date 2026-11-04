@@ -7,7 +7,7 @@
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { escribirRango, escribirCampos, leerLibro } from "../src/services/excelService.js";
+import { escribirRango, escribirCampos, leerLibro, leerCeldas } from "../src/services/excelService.js";
 
 function fakeRange({ formulas, values, text, address } = {}) {
   return {
@@ -101,6 +101,26 @@ test("leerLibro solo lee las direcciones cuya hoja existe en el libro", async ()
   assert.deepEqual(hojasLibro, ["EVC"]);
   assert.equal(datos.empresa.t[0][0], "Empresa X");
   assert.equal(datos.noExiste, undefined);
+});
+
+test("leerCeldas devuelve valor, texto y fórmula de cada celda en una sola ejecución de Excel.run", async () => {
+  const stats = installFakeOffice({
+    EVT: fakeWorksheet("EVT", {
+      B115: fakeRange({ values: [["Medidor 14-60"]], text: [["Medidor 14-60"]], formulas: [["Medidor 14-60"]] }),
+      M115: fakeRange({ values: [[2]], text: [["2"]], formulas: [["=L115+1"]] })
+    })
+  });
+  const r = await leerCeldas("EVT", ["B115", "M115"]);
+  assert.equal(r.hojaExiste, true);
+  assert.deepEqual(r.celdas.B115, { valor: "Medidor 14-60", texto: "Medidor 14-60", formula: "Medidor 14-60" });
+  assert.equal(r.celdas.M115.formula, "=L115+1");
+  assert.equal(stats.runCalls, 1);
+});
+
+test("leerCeldas informa cuando la hoja no existe, sin lanzar", async () => {
+  installFakeOffice({ PAR: fakeWorksheet("PAR") });
+  const r = await leerCeldas("EV PROG TÉCNICOS", ["B115"]);
+  assert.deepEqual(r, { hojaExiste: false, celdas: {} });
 });
 
 /* ---------- escribirCampos (escritura por lotes) ---------- */

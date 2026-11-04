@@ -4,8 +4,9 @@
  * DOM; ninguna llama a Office.js directamente — eso vive en services/excelService.js.
  */
 
-import { H, BLOQUES, ANCLAS } from "../config/cellMap.js";
+import { H, BLOQUES, ANCLAS, ANEXOS } from "../config/cellMap.js";
 import { esc, num, fmt, fmtMM } from "../utils/format.js";
+import { dependeDecision } from "../domain/anexos/salidaGesper.js";
 import { state } from "./state.js";
 
 function $(id) { return document.getElementById(id); }
@@ -366,6 +367,156 @@ export function pintaAlt() {
   $("s-alt").innerHTML = h;
 }
 
+/* ---------- PANTALLA: CARGAR ANEXOS ---------- */
+/**
+ * Consume state.anexos (evaluación del archivo y plan de carga ya calculados
+ * por domain/repositories/anexosRepository.js). Las reglas de qué se carga y
+ * qué se omite viven en domain/anexos/salidaGesper.js, no aquí.
+ */
+function idCorto(id) { return esc(String(id || "").replace(/^A\d+\./, "")); }
+function celdaTxt(v) { return v === null || v === undefined || v === "" ? '<span class="text-muted">vacía</span>' : esc(v); }
+
+function tablaEscrituras(lista) {
+  var h = '<div class="tscroll"><table class="cmp"><thead><tr><th>Dato</th><th>Celda</th><th class="c">Actual</th><th class="c">Nuevo</th></tr></thead><tbody>';
+  lista.forEach(function (e) {
+    h += '<tr' + (e.cambia ? ' class="chg"' : '') + ' title="' + esc(e.fila.CONCEPTO) + '"><td class="id">' + idCorto(e.fila.ID) +
+      (dependeDecision(e.fila) ? ' <span class="text-warning" title="Depende de una decisión del profesional">•</span>' : '') +
+      '</td><td>' + esc(e.celda) + '</td><td class="c">' + celdaTxt(e.actual) + '</td><td class="c">' + esc(e.valor) + '</td></tr>';
+  });
+  return h + '</tbody></table></div>';
+}
+
+function listaOmitidos(omitidos) {
+  var h = '';
+  omitidos.forEach(function (o) {
+    h += '<div class="anx-it"><code>' + idCorto(o.fila.ID) + '</code>' +
+      (o.fila.DESTINO_CELDA ? ' → <code>' + esc(o.fila.DESTINO_CELDA) + '</code>' : '') + '<div>' + esc(o.motivo) + '</div></div>';
+  });
+  return h;
+}
+
+function listaPendientes(ev) {
+  if (!ev.noDisponibles.length) return '';
+  var h = '<details class="anx-det"><summary>' + ev.noDisponibles.length + ' campos que este anexo no entrega (pendientes)</summary>';
+  ev.noDisponibles.forEach(function (f) {
+    h += '<div class="anx-it"><b>' + esc(f.CONCEPTO) + '</b><div>' + esc(f.DESTINO_ETIQUETA || f.NOTA || "") + '</div></div>';
+  });
+  return h + '</details>';
+}
+
+export function pintaAnexos() {
+  var A = state.anexos;
+  var anexo = ANEXOS.filter(function (a) { return a.id === A.anexoId; })[0];
+  var h = '<div class="sec">Cargar anexos</div>';
+  ANEXOS.forEach(function (a, i) {
+    h += '<button class="navb' + (a.id === A.anexoId ? ' on' : '') + '" data-anexo="' + esc(a.id) + '">' +
+      '<span class="ic">' + (i + 1) + '</span><span><span class="nm">' + esc(a.nombre) + '</span>' +
+      '<span class="sb">SALIDA_GESPER → ' + esc(a.hojaDestino) + '</span></span></button>';
+  });
+  var input = '<input type="file" id="anexoArchivo" accept=".xlsx,.xlsm" hidden>';
+  var elegir = function (txt, cls) { return '<button class="act ' + cls + '" id="btnElegirAnexo">' + txt + '</button>'; };
+
+  if (A.fase === "inicio") {
+    h += '<div class="card"><p>El panel lee la hoja <code>SALIDA_GESPER</code> del archivo del anexo, valida cada destino en GESPER y muestra una vista previa antes de escribir. Solo escribe en celdas de entrada sin fórmula.</p></div>';
+    h += '<div class="flag">Antes de elegirlo: abre el anexo en Excel, usa <b>Datos › Actualizar todo</b> y guárdalo. El panel lee los valores guardados en el archivo, no los recalcula.</div>';
+    h += '<div class="btn-row">' + elegir("Seleccionar archivo del anexo…", "primary lg block") + '</div>';
+    $("s-anexos").innerHTML = h + input;
+    return;
+  }
+
+  if (A.fase === "leyendo" || A.fase === "cargando") {
+    h += '<div class="load"><div class="spin"></div>' + (A.fase === "leyendo" ? "Leyendo el anexo y validando destinos…" : "Escribiendo en GESPER…") + '</div>';
+    $("s-anexos").innerHTML = h + input;
+    return;
+  }
+
+  if (A.fase === "error") {
+    h += sig("c", "No se pudo leer el anexo", (A.archivo ? "<b>" + esc(A.archivo.nombre) + "</b> · " : "") + esc(A.error));
+    h += '<div class="btn-row">' + elegir("Elegir otro archivo", "lg block") + '</div>';
+    $("s-anexos").innerHTML = h + input;
+    return;
+  }
+
+  // vista | resumen
+  var ev = A.evaluacion, plan = A.plan, meta = ev.meta;
+  var cambian = plan.escrituras.filter(function (e) { return e.cambia; });
+
+  h += '<div class="idc"><div class="co">' + esc(A.archivo.nombre) + '</div><div class="mt">' +
+    'Anexo ' + esc(meta.ANEXO_ID) + ' · programas ' + esc(meta.PROGRAMAS || "—") + ' · especificación ' + esc(meta.SPEC_VERSION) + '<br>' +
+    (A.archivo.modificado ? 'Guardado ' + esc(A.archivo.modificado.toLocaleString("es-CO")) + ' · ' : '') +
+    Math.max(1, Math.round(A.archivo.tamano / 1024)) + ' KB</div></div>';
+
+  if (A.fase === "resumen") {
+    var r = A.resultado;
+    h += sig("k", "Carga completada", "Se escribieron <b>" + r.escritos + "</b> valores en <code>" + esc(anexo.hojaDestino) + "</code>" +
+      " (" + r.cambiados + " cambiaron) y GESPER recalculó una vez." +
+      (plan.omitidos.length ? " Se omitieron <b>" + plan.omitidos.length + "</b>." : ""));
+    if (plan.omitidos.length) {
+      h += '<details class="anx-det"><summary>Ver los ' + plan.omitidos.length + ' datos omitidos y por qué</summary>' + listaOmitidos(plan.omitidos) + '</details>';
+    }
+    h += listaPendientes(ev);
+    if (r.cambiados) {
+      h += '<div class="flag">Cambiaron cantidades de ' + esc(meta.PROGRAMAS || "") + '. Si las alternativas ya se habían optimizado, vuelve a ejecutar el motor para que el consolidado refleje los nuevos B/C.</div>';
+    }
+    h += '<div class="btn-row">' +
+      '<button class="act lg" data-hoja="' + esc(anexo.hojaDestino) + '" data-addr="' + esc(plan.escrituras.length ? plan.escrituras[0].celda : "A1") + '">Ir a la hoja</button>' +
+      elegir("Cargar otro archivo", "ghost lg") + '</div>';
+    $("s-anexos").innerHTML = h + input;
+    return;
+  }
+
+  // Estado de lectura
+  if (plan.bloqueo) h += sig("c", "Carga bloqueada", esc(plan.bloqueo));
+  else if (ev.estadoGlobal === "OK") h += sig("k", "Anexo leído y verificado", "Estado global del anexo: <b>OK</b>.");
+  else h += sig("w", "Anexo con advertencias", "Estado global del anexo: <b>" + esc(meta.ESTADO_GLOBAL) + "</b>. Revisa las advertencias antes de cargar.");
+  if (A.error) h += sig("c", "La carga no se completó", esc(A.error));
+
+  h += '<div class="kgrid">' +
+    '<div class="kpi"><div class="kl">Datos en el anexo</div><div class="kv">' + ev.datos.length + '</div><div class="ks">de ' + ev.totalFilas + ' filas</div></div>' +
+    '<div class="kpi"><div class="kl">Listos para cargar</div><div class="kv">' + plan.escrituras.length + '</div><div class="ks">' + esc(anexo.hojaDestino) + '</div></div>' +
+    '<div class="kpi"><div class="kl">Cambian en GESPER</div><div class="kv">' + cambian.length + '</div><div class="ks">el resto ya coincide</div></div>' +
+    '<div class="kpi"><div class="kl">Omitidos</div><div class="kv' + (plan.omitidos.length ? ' text-critical' : '') + '">' + plan.omitidos.length + '</div><div class="ks">no se escriben</div></div>' +
+    '</div>';
+
+  // Advertencias y problemas
+  if (plan.avisos.length || ev.controlesRevisar.length || plan.omitidos.length) h += '<div class="sec">Advertencias y problemas</div>';
+  plan.avisos.forEach(function (a) {
+    h += sig("w", (a.tipo === "HORIZONTE" ? "Año fuera del horizonte · " : "Advertencia · ") + idCorto(a.fila.ID),
+      esc(a.fila.CONCEPTO) + ' <code>' + esc(a.fila.DESTINO_CELDA) + '</code><br>' + esc(a.texto));
+  });
+  ev.controlesRevisar.forEach(function (c) {
+    h += sig("c", "Control en REVISAR · " + idCorto(c.ID), esc(c.CONCEPTO) + " · valor " + esc(c.VALOR) + " · control " + esc(c.VALOR_CONTROL));
+  });
+  if (plan.omitidos.length) {
+    h += sig("c", plan.omitidos.length + " datos se omitirán", "No se escriben en GESPER. El panel no corrige destinos: revisa el anexo o la plantilla.");
+    h += '<details class="anx-det"><summary>Ver detalle</summary>' + listaOmitidos(plan.omitidos) + '</details>';
+  }
+  var nDec = plan.escrituras.filter(function (e) { return dependeDecision(e.fila); }).length;
+  if (nDec) h += '<div class="flag">' + nDec + ' de los datos a cargar dependen de una decisión del profesional (columna <code>DEPENDE_DECISION</code>). Se marcan con • en la vista previa.</div>';
+
+  // Vista previa
+  h += '<div class="sec">Vista previa · ' + plan.escrituras.length + ' datos</div>';
+  if (cambian.length) h += tablaEscrituras(cambian);
+  else if (plan.escrituras.length) h += '<div class="card"><p>Los ' + plan.escrituras.length + ' valores coinciden con los que hoy tiene GESPER.</p></div>';
+  if (plan.escrituras.length) {
+    h += '<details class="anx-det"><summary>Ver los ' + plan.escrituras.length + ' datos a cargar</summary>' + tablaEscrituras(plan.escrituras) + '</details>';
+  }
+  h += listaPendientes(ev);
+
+  // Confirmación
+  var puede = !plan.bloqueo && plan.escrituras.length > 0;
+  if (puede && plan.requiereConfirmacion) {
+    h += '<label class="chk"><input type="checkbox" id="anxConfirma"' + (A.confirmado ? " checked" : "") + '> Revisé las advertencias y quiero cargar estos datos</label>';
+  }
+  var habilitado = puede && (!plan.requiereConfirmacion || A.confirmado);
+  h += '<div class="btn-row">' +
+    '<button class="act primary lg grow" id="btnCargarAnexo"' + (habilitado ? "" : " disabled") + '>' +
+    (plan.bloqueo ? "Carga bloqueada" : (plan.escrituras.length ? "Cargar " + plan.escrituras.length + " datos en GESPER" : "No hay datos para cargar")) + '</button>' +
+    '<button class="act ghost lg" id="btnAnexoCancelar">Cancelar</button></div>';
+  h += '<p class="note">Un solo lote de escritura, un recálculo. Nunca sobre celdas con fórmula.</p>';
+  $("s-anexos").innerHTML = h + input;
+}
+
 /* ---------- PANTALLA: DIAGNÓSTICO ---------- */
 export function pintaDiag() {
   var h = '<div class="sec">Diagnóstico de conexión</div>';
@@ -390,6 +541,7 @@ export function pintaTodo() {
   try { pintaEstado(); } catch (e) { $("s-estado").innerHTML = errBox(e); }
   try { pintaNavegar(); } catch (e) { $("s-navegar").innerHTML = errBox(e); }
   try { pintaDatos(); } catch (e) { $("s-datos").innerHTML = errBox(e); }
+  try { pintaAnexos(); } catch (e) { $("s-anexos").innerHTML = errBox(e); }
   try { pintaResultados(); } catch (e) { $("s-result").innerHTML = errBox(e); }
   try { pintaAlt(); } catch (e) { $("s-alt").innerHTML = errBox(e); }
   try { pintaDiag(); } catch (e) { $("s-diag").innerHTML = errBox(e); }
