@@ -6,7 +6,7 @@
 
 import { H, BLOQUES, ANCLAS, ANEXOS } from "../config/cellMap.js";
 import { esc, num, fmt, fmtMM } from "../utils/format.js";
-import { dependeDecision } from "../domain/anexos/salidaGesper.js";
+import { dependeDecision, coinciden } from "../domain/anexos/salidaGesper.js";
 import { state } from "./state.js";
 
 function $(id) { return document.getElementById(id); }
@@ -374,16 +374,66 @@ export function pintaAlt() {
  * qué se omite viven en domain/anexos/salidaGesper.js, no aquí.
  */
 function idCorto(id) { return esc(String(id || "").replace(/^A\d+\./, "")); }
-function celdaTxt(v) { return v === null || v === undefined || v === "" ? '<span class="text-muted">vacía</span>' : esc(v); }
+/** Valor de celda: números con separadores es-CO y hasta 4 decimales, para que se vea un ajuste de decimales. */
+function celdaTxt(v) {
+  if (v === null || v === undefined || v === "") return '<span class="text-muted">vacía</span>';
+  return esc(typeof v === "number" ? v.toLocaleString("es-CO", { maximumFractionDigits: 4 }) : v);
+}
+function plural(n, uno, varios) { return n + " " + (n === 1 ? uno : varios); }
 
 function tablaEscrituras(lista) {
   var h = '<div class="tscroll"><table class="cmp"><thead><tr><th>Dato</th><th>Celda</th><th class="c">Actual</th><th class="c">Nuevo</th></tr></thead><tbody>';
   lista.forEach(function (e) {
     h += '<tr' + (e.cambia ? ' class="chg"' : '') + ' title="' + esc(e.fila.CONCEPTO) + '"><td class="id">' + idCorto(e.fila.ID) +
       (dependeDecision(e.fila) ? ' <span class="text-warning" title="Depende de una decisión del profesional">•</span>' : '') +
-      '</td><td>' + esc(e.celda) + '</td><td class="c">' + celdaTxt(e.actual) + '</td><td class="c">' + esc(e.valor) + '</td></tr>';
+      '</td><td>' + esc(e.celda) + '</td><td class="c">' + celdaTxt(e.actual) + '</td><td class="c">' + celdaTxt(e.valor) +
+      (e.ajuste ? ' <span class="text-muted" title="Solo cambian decimales (menos de 0,005)">≈</span>' : '') + '</td></tr>';
   });
   return h + '</tbody></table></div>';
+}
+
+/** Texto de un aviso: la NOTA del anexo para las advertencias (spec §6 paso 3). */
+function textoAviso(a) {
+  if (a.tipo !== "ADVERTENCIA") return esc(a.texto);
+  var f = a.fila;
+  return "Valor " + celdaTxt(f.VALOR) + (f.VALOR_CONTROL === null || f.VALOR_CONTROL === undefined || f.VALOR_CONTROL === "" ? "" : " · control " + celdaTxt(f.VALOR_CONTROL)) +
+    (f.NOTA ? " · " + esc(f.NOTA) : "");
+}
+function listaAvisos(avisos) {
+  var h = '';
+  avisos.forEach(function (a) {
+    h += '<div class="anx-it"><b>' + (a.tipo === "HORIZONTE" ? "Fuera del horizonte" : "Advertencia") + ' · <code>' + idCorto(a.fila.ID) + '</code> → <code>' +
+      esc(a.fila.DESTINO_CELDA) + '</code></b> ' + esc(a.fila.CONCEPTO) + '<div>' + textoAviso(a) + '</div></div>';
+  });
+  return h;
+}
+/** CONTROL en ADVERTENCIA o REVISAR: no se cargan, se muestran (spec §4). */
+function listaControles(controles) {
+  var h = '';
+  controles.forEach(function (c) {
+    h += '<div class="anx-it"><b>Control ' + esc(c.ESTADO) + ' · <code>' + idCorto(c.ID) + '</code></b> ' + esc(c.CONCEPTO) +
+      '<div>Valor ' + celdaTxt(c.VALOR) + ' · control ' + celdaTxt(c.VALOR_CONTROL) + (c.NOTA ? ' · ' + esc(c.NOTA) : '') + '</div></div>';
+  });
+  return h;
+}
+/**
+ * Referencias: CONTROL con destino en GESPER, que allí es una fórmula y no se
+ * escribe (A02.AIS.VERIF, A03.ROT.CAJAS_FALT). Se compara lo que calcula
+ * GESPER con lo que trae el anexo; tras la carga, con el valor ya recalculado.
+ */
+function listaReferencias(refs, tras) {
+  var h = '';
+  refs.forEach(function (r) {
+    var g = tras && r.despues !== undefined ? r.despues : r.gesper;
+    var ok = coinciden(g, r.fila.VALOR);
+    h += '<div class="anx-it"><b><code>' + esc(r.celda) + '</code></b> ' + esc(r.fila.CONCEPTO) +
+      '<div>GESPER calcula ' + celdaTxt(g) + (r.formula ? ' (fórmula, no se escribe)' : '') + ' · el anexo ' + celdaTxt(r.fila.VALOR) +
+      ' · <span class="' + (ok ? 'text-ok' : 'text-warning') + '">' + (ok ? 'coinciden' : 'no coinciden') + '</span></div></div>';
+  });
+  return h;
+}
+function detalle(titulo, cuerpo) {
+  return cuerpo ? '<details class="anx-det"><summary>' + titulo + '</summary>' + cuerpo + '</details>' : '';
 }
 
 /** Cada valor que cambia en GESPER, con su contexto: qué es, de qué grupo, en qué celda y año, y actual → nuevo. */
@@ -395,12 +445,70 @@ function listaCambios(cambian) {
     h += '<div class="anx-chg"><div class="tt">' + esc(e.fila.CONCEPTO) + '</div>' +
       '<div class="mt">' + esc(e.fila.SITIO || "") + ' · <code>' + esc(e.celda) + '</code>' + anio + '</div>' +
       '<div class="vv"><span class="' + (vacia ? "text-muted" : "old") + '">' + celdaTxt(e.actual) + '</span><span class="arr">→</span>' +
-      '<span class="new">' + esc(e.valor) + '</span></div>' +
+      '<span class="new">' + celdaTxt(e.valor) + '</span></div>' +
       (e.valor === 0 && typeof e.actual === "number" && e.actual !== 0
-        ? '<div class="nt text-warning">El anexo trae 0: reemplaza el ' + esc(e.actual) + ' que hoy tiene GESPER.</div>' : '') +
+        ? '<div class="nt text-warning">El anexo trae 0: reemplaza el ' + celdaTxt(e.actual) + ' que hoy tiene GESPER.</div>' : '') +
+      (e.fila.NOTA ? '<div class="nt">' + esc(e.fila.NOTA) + '</div>' : '') +
       '</div>';
   });
   return h + '</div>';
+}
+
+/** Por qué un grupo pide revisión antes de marcarlo (carga por grupo, A03). */
+function motivosGrupo(g) {
+  var m = [];
+  if (g.cambios) m.push(g.cambios === 1 ? "1 valor cambia en GESPER" : g.cambios + " valores cambian en GESPER");
+  var adv = g.avisos.filter(function (a) { return a.tipo === "ADVERTENCIA"; }).length;
+  if (adv) m.push(plural(adv, "advertencia", "advertencias"));
+  if (g.avisos.length > adv) m.push(plural(g.avisos.length - adv, "año fuera del horizonte", "años fuera del horizonte"));
+  if (g.controles.length) m.push(plural(g.controles.length, "control con observaciones", "controles con observaciones"));
+  if (g.omitidos.length) m.push((g.revisar ? "incompleto: " : "") + plural(g.omitidos.length, "dato no se carga", "datos no se cargan"));
+  else if (g.revisar) m.push("el anexo marca el grupo en REVISAR");
+  return m;
+}
+
+function tarjetaGrupo(g, marcado) {
+  var pide = g.requiereConfirmacion;
+  var cambian = g.escrituras.filter(function (e) { return e.cambia; });
+  var info = plural(g.escrituras.length, "dato", "datos") + (g.programa ? " · " + esc(g.programa) : "") + " · " + esc(g.id) +
+    (g.ajustes ? " · " + plural(g.ajustes, "ajuste de decimales", "ajustes de decimales") : "");
+  var cuerpo = '';
+  if (cambian.length) cuerpo += '<p class="note">Valores que cambian (actual → nuevo):</p>' + listaCambios(cambian);
+  if (g.avisos.length) cuerpo += listaAvisos(g.avisos);
+  if (g.controles.length) cuerpo += listaControles(g.controles);
+  if (g.omitidos.length) cuerpo += listaOmitidos(g.omitidos);
+  if (g.referencias.length) cuerpo += '<p class="note">Referencias (no se escriben):</p>' + listaReferencias(g.referencias);
+  if (g.escrituras.length) cuerpo += detalle("Ver los " + plural(g.escrituras.length, "dato", "datos") + " a cargar", tablaEscrituras(g.escrituras));
+  return '<div class="anx-grp' + (pide ? ' pide' : '') + (marcado ? ' on' : '') + '">' +
+    '<label class="chk"><input type="checkbox" data-grupo="' + esc(g.id) + '"' + (marcado ? ' checked' : '') + '>' +
+    '<span><b>' + esc(g.sitio || g.id) + '</b><span class="mt">' + info + '</span></span></label>' +
+    '<div class="why' + (pide ? ' text-warning' : '') + '">' + (pide ? 'Revísalo antes de marcarlo: ' + motivosGrupo(g).join(" · ") + '.'
+      : (g.ajustes ? 'Sin cambios ni advertencias (solo decimales).' : 'Sin cambios ni advertencias.')) + '</div>' +
+    detalle(pide ? "Ver qué revisar" : "Ver detalle", cuerpo) + '</div>';
+}
+
+/** Texto y estado del botón de carga; main.js lo actualiza al marcar una casilla sin repintar la pantalla. */
+function estadoBotonCarga(A, anexo) {
+  var plan = A.plan;
+  if (plan.bloqueo) return { habilitado: false, texto: "Carga bloqueada" };
+  if (anexo.cargaPorGrupo) {
+    var n = plan.escrituras.filter(function (e) { return A.grupos[e.grupo]; }).length;
+    var k = plan.grupos.filter(function (g) { return A.grupos[g.id] && g.escrituras.length; }).length;
+    return { habilitado: n > 0, texto: n ? "Cargar " + plural(n, "dato", "datos") + " de " + plural(k, "grupo", "grupos") : "Marca al menos un grupo para cargar" };
+  }
+  var puede = plan.escrituras.length > 0;
+  return {
+    habilitado: puede && (!plan.requiereConfirmacion || A.confirmado),
+    texto: puede ? "Cargar " + plan.escrituras.length + " datos en GESPER" : "No hay datos para cargar"
+  };
+}
+export function pintaBotonCargaAnexo() {
+  var b = $("btnCargarAnexo"), A = state.anexos;
+  var anexo = ANEXOS.filter(function (a) { return a.id === A.anexoId; })[0];
+  if (!b || !A.plan || !anexo) return;
+  var st = estadoBotonCarga(A, anexo);
+  b.disabled = !st.habilitado;
+  b.textContent = st.texto;
 }
 
 function listaOmitidos(omitidos) {
@@ -470,7 +578,9 @@ export function pintaAnexos() {
 
   // vista | resumen
   var ev = A.evaluacion, plan = A.plan, meta = ev.meta;
+  var porGrupo = !!anexo.cargaPorGrupo;
   var cambian = plan.escrituras.filter(function (e) { return e.cambia; });
+  var ajustes = plan.escrituras.filter(function (e) { return e.ajuste; });
 
   h += '<div class="idc"><div class="co">' + esc(A.archivo.nombre) + '</div><div class="mt">' +
     'Anexo ' + esc(meta.ANEXO_ID) + ' · programas ' + esc(meta.PROGRAMAS || "—") + ' · especificación ' + esc(meta.SPEC_VERSION) + '<br>' +
@@ -479,22 +589,31 @@ export function pintaAnexos() {
 
   if (A.fase === "resumen") {
     var r = A.resultado;
+    var escritas = r.escrituras || plan.escrituras;
+    var cambiaron = escritas.filter(function (e) { return e.cambia; });
+    var sinMarcar = porGrupo ? plan.grupos.filter(function (g) { return g.escrituras.length && (r.grupos || []).indexOf(g.id) < 0; }) : [];
     h += sig("k", "Carga completada", "Se escribieron <b>" + r.escritos + "</b> valores en <code>" + esc(anexo.hojaDestino) + "</code>" +
       " (" + r.cambiados + (r.cambiados === 1 ? " cambió" : " cambiaron") + ") y GESPER recalculó una vez." +
+      (porGrupo ? " Grupos cargados: <b>" + esc((r.grupos || []).join(", ")) + "</b>." : "") +
       (plan.omitidos.length ? " Se omitieron <b>" + plan.omitidos.length + "</b>." : ""));
-    if (cambian.length) {
-      h += '<details class="anx-det"><summary>' + (cambian.length === 1 ? 'Ver el valor que cambió' : 'Ver los ' + cambian.length + ' valores que cambiaron') +
-        '</summary>' + listaCambios(cambian) + '</details>';
+    if (sinMarcar.length) {
+      h += sig("w", plural(sinMarcar.length, "grupo no se cargó", "grupos no se cargaron"),
+        "No los marcaste, así que GESPER conserva sus valores: " + sinMarcar.map(function (g) { return esc(g.sitio || g.id); }).join(" · ") + ".");
     }
-    if (plan.omitidos.length) {
-      h += '<details class="anx-det"><summary>Ver los ' + plan.omitidos.length + ' datos omitidos y por qué</summary>' + listaOmitidos(plan.omitidos) + '</details>';
+    if (cambiaron.length) {
+      h += detalle(cambiaron.length === 1 ? 'Ver el valor que cambió' : 'Ver los ' + cambiaron.length + ' valores que cambiaron', listaCambios(cambiaron));
     }
+    if (plan.omitidos.length) h += detalle('Ver los ' + plan.omitidos.length + ' datos omitidos y por qué', listaOmitidos(plan.omitidos));
+    var refs = r.referencias || [];
+    if (refs.length) h += detalle("Ver " + plural(refs.length, "referencia", "referencias") + " de GESPER después de la carga", listaReferencias(refs, true));
     h += listaPendientes(ev);
     if (r.cambiados) {
-      h += '<div class="flag">Cambiaron cantidades de ' + esc(meta.PROGRAMAS || "") + '. Si las alternativas ya se habían optimizado, vuelve a ejecutar el motor para que el consolidado refleje los nuevos B/C.</div>';
+      var progs = [];
+      cambiaron.forEach(function (e) { var p = String(e.fila.PROGRAMA || ""); if (p && progs.indexOf(p) < 0) progs.push(p); });
+      h += '<div class="flag">Cambiaron cantidades de ' + esc(progs.join(", ") || meta.PROGRAMAS || "") + '. Si las alternativas ya se habían optimizado, vuelve a ejecutar el motor para que el consolidado refleje los nuevos B/C.</div>';
     }
     h += '<div class="btn-row">' +
-      '<button class="act lg block" data-hoja="' + esc(anexo.hojaDestino) + '" data-addr="' + esc(plan.escrituras.length ? plan.escrituras[0].celda : "A1") + '">Ir a la hoja ' + esc(anexo.hojaDestino) + '</button></div>';
+      '<button class="act lg block" data-hoja="' + esc(anexo.hojaDestino) + '" data-addr="' + esc(escritas.length ? escritas[0].celda : "A1") + '">Ir a la hoja ' + esc(anexo.hojaDestino) + '</button></div>';
     h += '<div class="sec">Cargar otro anexo</div>' + zona("Arrastra aquí el siguiente archivo");
     h += '<div class="btn-row">' + elegir("o búscalo con el explorador de archivos…", "ghost block") + '</div>';
     $("s-anexos").innerHTML = h;
@@ -503,6 +622,11 @@ export function pintaAnexos() {
 
   // Estado de lectura
   if (plan.bloqueo) h += sig("c", "Carga bloqueada", esc(plan.bloqueo));
+  else if (ev.cargaParcial) {
+    h += sig("w", "Anexo en REVISAR en parte", "Estado global del anexo: <b>REVISAR</b>. Los grupos <b>" + esc(ev.gruposRevisar.join(", ")) +
+      "</b> tienen datos que no cuadran: esos datos no se cargan y el grupo queda incompleto. " +
+      (porGrupo ? "Los demás grupos se pueden cargar por separado." : "El resto del anexo se puede cargar si lo confirmas."));
+  }
   else if (ev.estadoGlobal === "OK") h += sig("k", "Anexo leído y verificado", "Estado global del anexo: <b>OK</b>.");
   else h += sig("w", "Anexo con advertencias", "Estado global del anexo: <b>" + esc(meta.ESTADO_GLOBAL) + "</b>. Revisa las advertencias antes de cargar.");
   if (A.error) h += sig("c", "La carga no se completó", esc(A.error));
@@ -514,6 +638,33 @@ export function pintaAnexos() {
     '<div class="kpi"><div class="kl">Omitidos</div><div class="kv' + (plan.omitidos.length ? ' text-critical' : '') + '">' + plan.omitidos.length + '</div><div class="ks">no se escriben</div></div>' +
     '</div>';
 
+  var nDec = plan.escrituras.filter(function (e) { return dependeDecision(e.fila); }).length;
+  var notaDec = nDec ? '<div class="flag">' + nDec + ' de los datos a cargar dependen de una decisión del profesional (columna <code>DEPENDE_DECISION</code>). Se marcan con • en la vista previa.</div>' : '';
+
+  if (porGrupo) {
+    // Carga por grupo (spec A03 §6 pasos 2-3): cada grupo se confirma por separado.
+    h += notaDec;
+    var grupos = plan.grupos.filter(function (g) { return g.escrituras.length || g.omitidos.length; });
+    var nPide = grupos.filter(function (g) { return g.requiereConfirmacion; }).length;
+    h += '<div class="sec">Elige qué cargar · ' + plural(grupos.length, "grupo", "grupos") + '</div>';
+    h += '<p class="note">Cada grupo se carga por separado. ' +
+      (nPide ? 'Los ' + nPide + ' que traen cambios, advertencias o datos en REVISAR vienen sin marcar: abre su detalle y márcalos solo si quieres cargarlos así.'
+        : 'Ninguno trae cambios ni advertencias.') + '</p>';
+    grupos.forEach(function (g) { h += tarjetaGrupo(g, !!A.grupos[g.id]); });
+    if (ajustes.length) {
+      h += '<p class="note">' + plural(ajustes.length, "valor solo ajusta decimales", "valores solo ajustan decimales") +
+        ' (GESPER guardaba menos; diferencia menor a 0,005): se escriben sin pedir confirmación y se marcan con ≈.</p>';
+    }
+    h += listaPendientes(ev);
+    var stG = estadoBotonCarga(A, anexo);
+    h += '<div class="btn-row">' +
+      '<button class="act primary lg grow" id="btnCargarAnexo"' + (stG.habilitado ? "" : " disabled") + '>' + esc(stG.texto) + '</button>' +
+      '<button class="act ghost lg" id="btnAnexoCancelar">Cancelar</button></div>';
+    h += '<p class="note">Solo se escriben los grupos marcados, en un solo lote y con un recálculo. Nunca sobre celdas con fórmula.</p>';
+    $("s-anexos").innerHTML = h;
+    return;
+  }
+
   // Advertencias y problemas
   if (plan.avisos.length || ev.controlesRevisar.length || plan.omitidos.length || cambian.length) h += '<div class="sec">Advertencias y problemas</div>';
   if (cambian.length) {
@@ -522,17 +673,20 @@ export function pintaAnexos() {
   }
   plan.avisos.forEach(function (a) {
     h += sig("w", (a.tipo === "HORIZONTE" ? "Año fuera del horizonte · " : "Advertencia · ") + idCorto(a.fila.ID),
-      esc(a.fila.CONCEPTO) + ' <code>' + esc(a.fila.DESTINO_CELDA) + '</code><br>' + esc(a.texto));
+      esc(a.fila.CONCEPTO) + ' <code>' + esc(a.fila.DESTINO_CELDA) + '</code><br>' + textoAviso(a));
   });
   ev.controlesRevisar.forEach(function (c) {
-    h += sig("c", "Control en REVISAR · " + idCorto(c.ID), esc(c.CONCEPTO) + " · valor " + esc(c.VALOR) + " · control " + esc(c.VALOR_CONTROL));
+    h += sig("c", "Control en REVISAR · " + idCorto(c.ID), esc(c.CONCEPTO) + " · valor " + celdaTxt(c.VALOR) + " · control " + celdaTxt(c.VALOR_CONTROL));
+  });
+  ev.controlesAdvertencia.forEach(function (c) {
+    h += sig("w", "Control en ADVERTENCIA · " + idCorto(c.ID), esc(c.CONCEPTO) + " · valor " + celdaTxt(c.VALOR) + " · control " + celdaTxt(c.VALOR_CONTROL) +
+      (c.NOTA ? "<br>" + esc(c.NOTA) : ""));
   });
   if (plan.omitidos.length) {
     h += sig("c", plan.omitidos.length + " datos se omitirán", "No se escriben en GESPER. El panel no corrige destinos: revisa el anexo o la plantilla.");
-    h += '<details class="anx-det"><summary>Ver detalle</summary>' + listaOmitidos(plan.omitidos) + '</details>';
+    h += detalle("Ver detalle", listaOmitidos(plan.omitidos));
   }
-  var nDec = plan.escrituras.filter(function (e) { return dependeDecision(e.fila); }).length;
-  if (nDec) h += '<div class="flag">' + nDec + ' de los datos a cargar dependen de una decisión del profesional (columna <code>DEPENDE_DECISION</code>). Se marcan con • en la vista previa.</div>';
+  h += notaDec;
 
   // Vista previa
   h += '<div class="sec">Vista previa · ' + plan.escrituras.length + ' datos</div>';
@@ -543,8 +697,13 @@ export function pintaAnexos() {
     }
   }
   else if (plan.escrituras.length) h += '<div class="card"><p>Los ' + plan.escrituras.length + ' valores coinciden con los que hoy tiene GESPER.</p></div>';
-  if (plan.escrituras.length) {
-    h += '<details class="anx-det"><summary>Ver los ' + plan.escrituras.length + ' datos a cargar</summary>' + tablaEscrituras(plan.escrituras) + '</details>';
+  if (ajustes.length) {
+    h += '<p class="note">' + plural(ajustes.length, "valor solo ajusta decimales", "valores solo ajustan decimales") +
+      ' (diferencia menor a 0,005): se escriben sin pedir confirmación y se marcan con ≈.</p>';
+  }
+  if (plan.escrituras.length) h += detalle('Ver los ' + plan.escrituras.length + ' datos a cargar', tablaEscrituras(plan.escrituras));
+  if (plan.referencias.length) {
+    h += detalle("Ver " + plural(plan.referencias.length, "referencia", "referencias") + " de GESPER (no se escriben)", listaReferencias(plan.referencias));
   }
   h += listaPendientes(ev);
 
@@ -554,13 +713,13 @@ export function pintaAnexos() {
     var revise = [];
     if (cambian.length) revise.push(cambian.length === 1 ? "el valor que cambia" : "los " + cambian.length + " valores que cambian");
     if (plan.avisos.length || ev.estadoGlobal === "OK CON ADVERTENCIAS") revise.push("las advertencias");
+    if (ev.cargaParcial) revise.push("los datos en REVISAR que no se cargan");
     h += '<label class="chk"><input type="checkbox" id="anxConfirma"' + (A.confirmado ? " checked" : "") + '> Revisé ' +
       revise.join(" y ") + ' y quiero cargar estos datos</label>';
   }
-  var habilitado = puede && (!plan.requiereConfirmacion || A.confirmado);
+  var st = estadoBotonCarga(A, anexo);
   h += '<div class="btn-row">' +
-    '<button class="act primary lg grow" id="btnCargarAnexo"' + (habilitado ? "" : " disabled") + '>' +
-    (plan.bloqueo ? "Carga bloqueada" : (plan.escrituras.length ? "Cargar " + plan.escrituras.length + " datos en GESPER" : "No hay datos para cargar")) + '</button>' +
+    '<button class="act primary lg grow" id="btnCargarAnexo"' + (st.habilitado ? "" : " disabled") + '>' + esc(st.texto) + '</button>' +
     '<button class="act ghost lg" id="btnAnexoCancelar">Cancelar</button></div>';
   h += '<p class="note">Un solo lote de escritura, un recálculo. Nunca sobre celdas con fórmula.</p>';
   $("s-anexos").innerHTML = h;

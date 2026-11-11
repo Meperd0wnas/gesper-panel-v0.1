@@ -43,8 +43,11 @@ export async function prepararCarga(evaluacion, anexo) {
  *   (null si no confirmó). Si la carga requiere confirmación y no la hay, o
  *   si lo que hay hoy en GESPER ya no es lo que el usuario vio, no se escribe
  *   nada: se lanza un Error con `planActual` para volver a mostrar la vista previa.
+ * @param {string[]} [gruposElegidos] solo con `anexo.cargaPorGrupo`: los
+ *   grupos que el usuario marcó en esa vista previa. Se escriben solo esos;
+ *   marcar un grupo que pide revisión es su confirmación.
  */
-export async function ejecutarCarga(evaluacion, anexo, planConfirmado) {
+export async function ejecutarCarga(evaluacion, anexo, planConfirmado, gruposElegidos) {
   var plan = await prepararCarga(evaluacion, anexo);
   if (plan.bloqueo) throw new Error(plan.bloqueo);
   if (plan.requiereConfirmacion && !(planConfirmado && firmaPlan(planConfirmado) === firmaPlan(plan))) {
@@ -54,14 +57,35 @@ export async function ejecutarCarga(evaluacion, anexo, planConfirmado) {
     e.planActual = plan;
     throw e;
   }
-  if (plan.escrituras.length) {
-    await escribirCampos(plan.escrituras.map(function (e) {
-      return { hoja: e.hoja, direccion: e.celda, valores: [[e.valor]] };
+  var escrituras = plan.escrituras;
+  if (anexo.cargaPorGrupo) {
+    var elegidos = gruposElegidos || [];
+    escrituras = escrituras.filter(function (x) { return elegidos.indexOf(x.grupo) >= 0; });
+    if (!escrituras.length) throw new Error("No marcaste ningún grupo para cargar. No se escribió nada.");
+  }
+  if (escrituras.length) {
+    await escribirCampos(escrituras.map(function (x) {
+      return { hoja: x.hoja, direccion: x.celda, valores: [[x.valor]] };
     }));
+  }
+  // Las referencias (CONTROL con destino, que en GESPER son fórmulas) se
+  // vuelven a leer ya recalculadas, para compararlas con lo que se cargó. Si
+  // esa lectura falla, la carga ya está hecha: se informa sin el dato.
+  var referencias = plan.referencias;
+  if (escrituras.length && referencias.length) {
+    try {
+      var despues = await leerCeldas(anexo.hojaDestino, referencias.map(function (r) { return r.celda; }));
+      referencias = referencias.map(function (r) {
+        return Object.assign({}, r, { despues: (despues.celdas[r.celda] || {}).valor });
+      });
+    } catch (e) { /* se muestran los valores de la vista previa */ }
   }
   return {
     plan: plan,
-    escritos: plan.escrituras.length,
-    cambiados: plan.escrituras.filter(function (e) { return e.cambia; }).length
+    escrituras: escrituras,
+    grupos: anexo.cargaPorGrupo ? (gruposElegidos || []).slice() : null,
+    referencias: referencias,
+    escritos: escrituras.length,
+    cambiados: escrituras.filter(function (x) { return x.cambia; }).length
   };
 }

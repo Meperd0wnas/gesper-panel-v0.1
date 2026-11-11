@@ -35,10 +35,15 @@ test("cada anexo tiene id único, hoja destino conocida y bloques de horizonte q
     assert.ok(Number.isInteger(a.filaAnios) && a.filaAnios > 0);
     assert.ok(["concepto", "grupo"].includes(a.alcanceControles), `alcanceControles de ${a.id}`);
     for (const c of a.celdasProtegidas || []) assert.match(c, /^[A-Z]+\d+$/, `celda protegida "${c}" de ${a.id}`);
-    for (const b of a.banderasHorizonte) {
-      assert.ok(b.desde <= b.hasta && b.hasta < b.fila, `bloque ${b.desde}-${b.hasta} de ${a.id}: la bandera va debajo`);
+    // La bandera puede ir debajo del bloque (A01, A02) o en medio (A03: los
+    // volúmenes recuperados van debajo de ella); los bloques no se pisan.
+    const bloques = a.banderasHorizonte.slice().sort((x, y) => x.desde - y.desde);
+    bloques.forEach((b, i) => {
+      assert.ok(b.desde <= b.hasta, `bloque ${b.desde}-${b.hasta} de ${a.id}`);
+      assert.ok(b.fila >= b.desde && b.fila <= b.hasta + 1, `la bandera ${b.fila} de ${a.id} va dentro o justo debajo de ${b.desde}-${b.hasta}`);
       assert.ok(a.filasBandera.includes(b.fila), `la bandera ${b.fila} de ${a.id} debe estar en filasBandera`);
-    }
+      if (i > 0) assert.ok(b.desde > bloques[i - 1].hasta, `los bloques ${bloques[i - 1].desde}-${bloques[i - 1].hasta} y ${b.desde}-${b.hasta} de ${a.id} se pisan`);
+    });
   }
 });
 

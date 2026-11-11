@@ -66,6 +66,25 @@ const LIBRO = {
     `</sheetData></worksheet>`
 };
 
+/** Cambia el método de compresión de una entrada del ZIP (encabezado local y central). */
+function conMetodo(zip, nombre, metodo) {
+  const b = Buffer.from(zip), n = Buffer.from(nombre, "utf8");
+  for (let i = 0; i + 46 < b.length; i++) {
+    const firma = b.readUInt32LE(i);
+    if (firma === 0x04034b50 && b.subarray(i + 30, i + 30 + n.length).equals(n)) b.writeUInt16LE(metodo, i + 8);
+    if (firma === 0x02014b50 && b.subarray(i + 46, i + 46 + n.length).equals(n)) b.writeUInt16LE(metodo, i + 10);
+  }
+  return b;
+}
+
+test("leerXlsx solo lee las cadenas compartidas si la hoja pedida las usa (anexos de cientos de MB)", async () => {
+  // sharedStrings.xml ilegible: si el lector lo tocara, fallaría.
+  const zip = conMetodo(crearZip(LIBRO, true), "xl/sharedStrings.xml", 99);
+  const lib = await leerXlsx(zip, { hojas: ["Datos & más"] });
+  assert.deepEqual(lib.celdas["Datos & más"], { A1: 1 });
+  await assert.rejects(() => leerXlsx(zip, { hojas: ["SALIDA_GESPER"] }), /compresión no soportado \(99\) en xl\/sharedStrings\.xml/);
+});
+
 test("leerXlsx lee hojas, nombres definidos de libro y los valores guardados de cada tipo de celda", async () => {
   const lib = await leerXlsx(crearZip(LIBRO, true), { hojas: ["SALIDA_GESPER"] });
   assert.deepEqual(lib.hojas, ["Datos & más", "SALIDA_GESPER"]);

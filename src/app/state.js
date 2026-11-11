@@ -20,6 +20,7 @@ export const state = {
     plan: null,        // planificarCarga(...): escrituras, omitidos, avisos
     resultado: null,   // ejecutarCarga(...): resumen de la carga
     error: null,       // mensaje del último error de lectura o carga
-    confirmado: false  // el usuario marcó que revisó las advertencias
+    confirmado: false, // el usuario marcó que revisó las advertencias
+    grupos: {}         // carga por grupo (A03): { "ERP": true, ... } grupos marcados para cargar
   }
 };

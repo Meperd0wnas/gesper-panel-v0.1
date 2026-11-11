@@ -270,9 +270,15 @@ export async function leerXlsx(buffer, opciones) {
   for (var i = 0; i < pedidas.length; i++) {
     var ruta = archivoHoja[pedidas[i]];
     if (!ruta) continue;
-    if (compartidas === null) compartidas = leerCadenasCompartidas(await leerEntrada(bytes, entradas, "xl/sharedStrings.xml"));
     var xml = await leerEntrada(bytes, entradas, ruta);
-    if (xml) celdas[pedidas[i]] = leerCeldasHoja(xml, compartidas);
+    if (!xml) continue;
+    // Las cadenas compartidas son de todo el libro: en un anexo grande (el
+    // A03 pesa 535 MB sin comprimir) pueden ser enormes. Solo se leen si la
+    // hoja pedida las usa (t="s"); SALIDA_GESPER usa texto en línea.
+    if (compartidas === null && /<c\b[^>]*\bt="s"/.test(xml)) {
+      compartidas = leerCadenasCompartidas(await leerEntrada(bytes, entradas, "xl/sharedStrings.xml"));
+    }
+    celdas[pedidas[i]] = leerCeldasHoja(xml, compartidas || []);
   }
 
   return { hojas: hojas, nombres: nombres, celdas: celdas };

@@ -9,7 +9,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { ANEXOS } from "../src/config/cellMap.js";
 import {
-  COLUMNAS, interpretarSalida, evaluarAnexo, direccionesAInspeccionar, planificarCarga, dependeDecision, normalizarTexto
+  COLUMNAS, interpretarSalida, evaluarAnexo, direccionesAInspeccionar, planificarCarga, dependeDecision, normalizarTexto,
+  seleccionInicial, grupoDe, coinciden
 } from "../src/domain/anexos/salidaGesper.js";
 import { ejecutarCarga, prepararCarga, anexoPorId } from "../src/domain/repositories/anexosRepository.js";
 import { columnaALetra } from "../src/utils/xlsx.js";
@@ -50,7 +51,7 @@ function libroAnexo({ meta = {}, filas = FILAS, encabezados = COLUMNAS, conNombr
   return {
     hojas: ["ResumenGeneral", "SALIDA_GESPER"],
     nombres: conNombres ? {
-      SALIDA_GESPER_META: { hoja: "SALIDA_GESPER", ref: "A3:H4" },
+      SALIDA_GESPER_META: { hoja: "SALIDA_GESPER", ref: "A3:" + columnaALetra(Math.max(8, Object.keys(m).length)) + "4" },
       SALIDA_GESPER_DATOS: { hoja: "SALIDA_GESPER", ref: "A6:S" + (6 + filas.length) }
     } : {},
     celdas: { SALIDA_GESPER: celdas }
@@ -68,14 +69,20 @@ function gesper(cambios = {}) {
   return inspeccion(Object.assign(c, cambios));
 }
 
+/**
+ * Celda simulada de GESPER: un valor ("texto", 3), una fórmula sin resultado
+ * que importe ("=SUM(...)", vale 0) o una fórmula con su resultado ({ f, v }).
+ */
+function celdaSimulada(v) {
+  if (v && typeof v === "object") return { valor: v.v, texto: String(v.v), formula: v.f };
+  const esF = typeof v === "string" && v.charAt(0) === "=";
+  return { valor: esF ? 0 : v, texto: String(esF ? 0 : v), formula: v };
+}
+
 /** { "B115": "texto", "M115": 3, "L479": "=SUM(...)" } -> forma de excelService.leerCeldas. */
 function inspeccion(c) {
   const celdas = {};
-  Object.keys(c).forEach((k) => {
-    const v = c[k];
-    const esF = typeof v === "string" && v.charAt(0) === "=";
-    celdas[k] = { valor: esF ? 0 : v, texto: String(esF ? 0 : v), formula: v };
-  });
+  Object.keys(c).forEach((k) => { celdas[k] = celdaSimulada(c[k]); });
   return { hojaExiste: true, celdas };
 }
 
@@ -249,9 +256,8 @@ function instalarGesper(valores) {
   const rangos = {};
   const rango = (addr) => {
     if (!rangos[addr]) {
-      const v = valores[addr] === undefined ? "" : valores[addr];
-      const esF = typeof v === "string" && v.charAt(0) === "=";
-      rangos[addr] = { values: [[esF ? 0 : v]], text: [[String(esF ? 0 : v)]], formulas: [[v]], address: EVT + "!" + addr, load() {} };
+      const c = celdaSimulada(valores[addr] === undefined ? "" : valores[addr]);
+      rangos[addr] = { values: [[c.valor]], text: [[c.texto]], formulas: [[c.formula]], address: EVT + "!" + addr, load() {} };
     }
     return rangos[addr];
   };
@@ -397,7 +403,9 @@ test("A02: lee los 70 datos, nunca escribe las 13 filas CONTROL y deja las 9 NO_
   assert.equal(plan.omitidos.length, 0);
   assert.ok(plan.escrituras.every((e) => e.fila.TIPO_FILA === "DATO"));
   assert.ok(!plan.escrituras.some((e) => /479$/.test(e.celda)), "las referencias de aislamiento (L479:Q479) no se escriben");
-  assert.ok(!direccionesAInspeccionar(ev, A02).includes("L479"), "ni siquiera se leen como destino");
+  assert.ok(!direccionesAInspeccionar(ev, A02).includes("B479"), "no se validan como destino (sin etiqueta ni año)");
+  assert.deepEqual(plan.referencias.map((r) => [r.celda, r.formula]),
+    ["L479", "M479", "N479", "O479", "P479", "Q479"].map((c) => [c, true]), "solo se leen, como referencia");
 });
 
 test("A02: transfiere los ceros y detecta la única diferencia con GESPER (L465: 10 → 0), que exige confirmación", () => {
@@ -487,7 +495,10 @@ test("A02: con la confirmación del plan visto escribe los 70 valores, incluido 
   assert.equal(r.cambiados, 1);
   assert.deepEqual(rangos.L465.values, [[0]]);
   assert.deepEqual(rangos.D463.values, [[262]]);
-  assert.equal(rangos.L479, undefined, "la fila de fórmulas de aislamiento no se toca");
+  assert.deepEqual(rangos.L479.formulas, [["=SUM(L480:L482)"]], "la fila de fórmulas de aislamiento no se escribe");
+  assert.deepEqual(rangos.L479.values, [[0]]);
+  assert.ok(!r.escrituras.some((e) => /479$/.test(e.celda)));
+  assert.equal(r.referencias.length, 6, "se releen después de recalcular, para compararlas");
   assert.equal(stats.calculateCalls, 1);
 });
 
@@ -501,4 +512,224 @@ test("A02: si GESPER cambió entre la vista previa y la carga, la confirmación 
   assert.equal(err.planActual.escrituras.filter((e) => e.cambia)[0].actual, 12, "devuelve la vista previa actualizada");
   assert.deepEqual(rangos.L465.values, [[12]]);
   assert.equal(stats.calculateCalls, 0);
+});
+
+/* ---------- Anexo 3 — Presiones, daños y fugas (P3, P5, P6) ---------- */
+/*
+ * Fixture con los casos de Especificacion_SALIDA_GESPER_A03 v1.1 (§2, §4, §6,
+ * §11): contrato 1.1 con ESTADO_GLOBAL REVISAR y GRUPOS_REVISAR en la columna
+ * I, varios grupos independientes, un CONTROL de una serie en REVISAR
+ * (DAN.CTRL_TAD), una referencia con destino en una fórmula de GESPER (D548),
+ * un rótulo de GESPER que es fórmula (B697), ruido de punto flotante
+ * (L509), un ajuste de decimales (L623) y diferencias reales (D501, D673).
+ */
+const A03 = anexoPorId("A03");
+const SITIO_A03 = {
+  ERP: "3.1 Instalación y mantenimiento de ERP's", FIJ: "3.3.1 Equipos de presión fijos", ROT: "3.3.2 Equipos de presión rotativos",
+  MOD: "3.4 Modelo hidráulico", DAN: "5.1 Atención de daños", DET: "6.1 Detección de fugas", RMEN: "6.2.1 Reparación en redes menores"
+};
+const PROG_A03 = { ERP: "P3", FIJ: "P3", ROT: "P3", MOD: "P3", DAN: "P5", DET: "P6", RMEN: "P6" };
+const ETQ_RMEN_VOL = "Volumen de agua recuperado por Reparación de fugas en redes menores";
+
+function filasA03() {
+  const g = (id) => id.split(".")[1];
+  const dato = (id, celda, valor, o = {}) => fila(Object.assign({
+    ID: id, TIPO_FILA: "DATO", PROGRAMA: PROG_A03[g(id)], SITIO: SITIO_A03[g(id)], CONCEPTO: "Concepto " + id,
+    ANIO_IDX: /\.Y(\d\d)$/.test(id) ? Number(id.slice(-2)) : null, VALOR: valor, ESTADO: "OK",
+    DESTINO_CELDA: celda, DESTINO_ETIQUETA: celda === "M697" ? ETQ_RMEN_VOL : "Rótulo de la fila " + celda.replace(/^[A-Z]+/, "")
+  }, o));
+  const control = (id, o = {}) => fila(Object.assign({
+    ID: id, TIPO_FILA: "CONTROL", PROGRAMA: PROG_A03[g(id)], SITIO: SITIO_A03[g(id)], VALOR: 1, VALOR_CONTROL: 1, ESTADO: "OK", DESTINO_HOJA: null
+  }, o));
+  return [
+    dato("A03.ERP.FALT", "D497", 21),
+    dato("A03.ERP.MANT_TOT", "D501", 14, { NOTA: "H-05" }),
+    dato("A03.ERP.VOL_MANT.Y01", "L509", 92653.59999999999, { ESTADO: "ADVERTENCIA", VALOR_CONTROL: 92653.59999999999, NOTA: "Total vacío en la hoja fuente (H-12)." }),
+    control("A03.ERP.CTRL_MANT"),
+    control("A03.ERP.COBERT_VOL_MANT", { ESTADO: "ADVERTENCIA", VALOR: 2647562.6, VALOR_CONTROL: 2844796 }),
+    dato("A03.FIJ.EXIST", "D530", 120),
+    dato("A03.FIJ.CAJAS.Y01", "L533", 6),
+    control("A03.FIJ.CTRL_CAJAS"),
+    dato("A03.ROT.CAJAS_DISP", "D547", 53),
+    control("A03.ROT.CAJAS_FALT", { VALOR: 16, VALOR_CONTROL: 16, DESTINO_HOJA: EVT, DESTINO_CELDA: "D548", DESTINO_ETIQUETA: "No. de cajas faltantes" }),
+    dato("A03.MOD.CAL.Y01", "L623", 30582.84153118256),
+    dato("A03.MOD.ACT.Y05", "P624", 33635.03, { ESTADO: "REVISAR", VALOR_CONTROL: 40215.62 }),
+    control("A03.MOD.CTRL_ACT"),
+    dato("A03.DAN.TAD.Y01", "L666", 132091.57),
+    dato("A03.DAN.CAPAC.Y01", "L660", 1),
+    control("A03.DAN.CTRL_TAD", { ESTADO: "REVISAR", VALOR: 132091.57, VALOR_CONTROL: 252358.16 }),
+    dato("A03.DET.LONG_RED", "D673", 1532829.0556638443),
+    dato("A03.RMEN.VOL.Y02", "M697", 181314.49),
+    fila({ ID: "A03.GEN.CONTEMPLADO", TIPO_FILA: "NO_DISPONIBLE", PROGRAMA: "P3, P5, P6", SITIO: "General", VALOR: null, ESTADO: "N/A", DESTINO_HOJA: null }),
+    fila({ ID: "A03.GEN.HORIZONTE", TIPO_FILA: "NO_DISPONIBLE", PROGRAMA: "P3, P5, P6", SITIO: "General", VALOR: null, ESTADO: "N/A", DESTINO_HOJA: null })
+  ];
+}
+
+/** EV PROG TÉCNICOS para el A03: años en las filas 2 y 3, banderas en NO, destinos = anexo salvo las diferencias de la spec §6. */
+function gesperA03(cambios = {}) {
+  const c = {};
+  for (let y = 0; y <= 10; y++) { c[COL_ANIO[y] + "2"] = y; c[COL_ANIO[y] + "3"] = 2025 + y; }
+  A03.filasBandera.forEach((r) => { c["B" + r] = ETQ_CONTEMPLADO; for (let y = 0; y <= 10; y++) c[COL_ANIO[y] + r] = "NO"; });
+  filasA03().forEach((f) => {
+    if (f.TIPO_FILA === "DATO") { c["B" + f.DESTINO_CELDA.replace(/^[A-Z]+/, "")] = f.DESTINO_ETIQUETA; c[f.DESTINO_CELDA] = f.VALOR; }
+  });
+  c.B697 = { f: '=CONCATENATE("Volumen de agua recuperado por ",B688)', v: ETQ_RMEN_VOL }; // rótulo calculado (spec A03 §3, columna P)
+  c.D548 = { f: "=D546-D547", v: 16 };
+  c.D501 = 15;                       // H-05: GESPER 15, el anexo 14
+  c.L509 = 92653.6;                  // mismo valor salvo el redondeo binario
+  c.L623 = 30582.84;                 // GESPER guarda 2 decimales
+  c.D673 = 1532829.061276;           // H-07: 0,0056 m de diferencia
+  c.B545 = "Tiempo estimado para inversión total - Años de priorización"; c.D545 = 5;
+  return Object.assign(c, cambios);
+}
+
+function libroA03({ meta = {}, filas = filasA03() } = {}) {
+  return libroAnexo({
+    filas,
+    meta: Object.assign({
+      SPEC_VERSION: "1.1", ANEXO_ID: "A03", PROGRAMAS: "P3, P5, P6", ESTADO_GLOBAL: "REVISAR",
+      N_DATO: 12, N_DATO_OK: 11, N_ADVERTENCIA: 2, N_REVISAR: 2, GRUPOS_REVISAR: "MOD DAN" // GRUPOS_REVISAR en la columna I, como en el anexo
+    }, meta)
+  });
+}
+function evaluarA03(opts) { return evaluarAnexo(interpretarSalida(libroA03(opts)), A03); }
+function planA03(ev, cambios) { return planificarCarga(ev, inspeccion(gesperA03(cambios)), A03); }
+function celdasDe(plan) { return plan.escrituras.map((e) => e.celda); }
+
+test("A03: reconoce el anexo, los programas P3, P5 y P6 y lee GRUPOS_REVISAR de la columna I", () => {
+  const s = interpretarSalida(libroA03());
+  assert.equal(s.meta.GRUPOS_REVISAR, "MOD DAN");
+  assert.deepEqual(s.version, { mayor: 1, menor: 1 });
+  const ev = evaluarA03();
+  assert.equal(ev.datos.length, 12);
+  assert.equal(ev.controles.length, 6);
+  assert.equal(ev.noDisponibles.length, 2);
+  assert.throws(() => evaluarA03({ meta: { PROGRAMAS: "P3, P5" } }), /para el A03 se esperaba P3, P5, P6/);
+  assert.throws(() => evaluarAnexo(interpretarSalida(libroA03()), A02), /anexo A03, no al A02/);
+  assert.equal(grupoDe("A03.ERP.INST.R6.Y02"), "ERP");
+});
+
+test("A03: con la spec 1.1, ESTADO_GLOBAL REVISAR bloquea solo las filas en REVISAR y deja cargar el resto", () => {
+  const ev = evaluarA03();
+  assert.equal(ev.bloqueo, null);
+  assert.equal(ev.cargaParcial, true);
+  assert.deepEqual(ev.gruposRevisar, ["MOD", "DAN"]);
+  assert.match(ev.omitidos.filter((o) => o.fila.ID === "A03.MOD.ACT.Y05")[0].motivo, /REVISAR/);
+  const plan = planA03(ev);
+  assert.equal(plan.bloqueo, null);
+  assert.equal(plan.requiereConfirmacion, true, "una carga parcial siempre se confirma");
+  assert.ok(celdasDe(plan).includes("L623"), "la calibración del modelo (MOD) sí se carga");
+  assert.ok(!celdasDe(plan).includes("P624"), "la actualización en REVISAR no");
+});
+
+test("A03: el mismo REVISAR con la spec 1.0, o sin grupos identificables, bloquea toda la carga", async () => {
+  assert.match(evaluarA03({ meta: { SPEC_VERSION: "1.0" } }).bloqueo, /REVISAR/);
+  const sinGrupos = filasA03().map((f) => (f.ESTADO === "REVISAR" ? Object.assign({}, f, { ESTADO: "OK" }) : f));
+  const ev = evaluarA03({ filas: sinGrupos, meta: { GRUPOS_REVISAR: "" } });
+  assert.match(ev.bloqueo, /REVISAR/);
+  const { stats } = instalarGesper(gesperA03());
+  await assert.rejects(() => ejecutarCarga(ev, A03, null, ["FIJ"]), /REVISAR/);
+  assert.equal(stats.calculateCalls, 0);
+});
+
+test("A03: un CONTROL de una serie en REVISAR invalida solo esa serie (DAN.TAD), no el resto del grupo (DAN.CAPAC)", () => {
+  const ev = evaluarA03();
+  assert.ok(ev.omitidos.some((o) => o.fila.ID === "A03.DAN.TAD.Y01" && /CTRL_TAD/.test(o.motivo)));
+  assert.ok(ev.candidatos.some((f) => f.ID === "A03.DAN.CAPAC.Y01"));
+  // Un control de cobertura (COBERT_) en REVISAR invalida su concepto igual que un CTRL_.
+  const filas = filasA03().map((f) => (f.ID === "A03.ERP.COBERT_VOL_MANT" ? Object.assign({}, f, { ESTADO: "REVISAR" }) : f));
+  const ev2 = evaluarA03({ filas });
+  assert.ok(ev2.omitidos.some((o) => o.fila.ID === "A03.ERP.VOL_MANT.Y01" && /COBERT_VOL_MANT/.test(o.motivo)));
+  assert.ok(ev2.candidatos.some((f) => f.ID === "A03.ERP.MANT_TOT"), "MANT_TOT no es de la serie VOL_MANT");
+  assert.ok(ev2.gruposRevisar.includes("ERP"));
+});
+
+test("A03: los CONTROL con destino (D548) se leen como referencia y nunca se escriben", async () => {
+  const ev = evaluarA03();
+  assert.ok(direccionesAInspeccionar(ev, A03).includes("D548"));
+  const plan = planA03(ev);
+  assert.ok(!celdasDe(plan).includes("D548"));
+  assert.deepEqual(plan.referencias.map((r) => [r.fila.ID, r.celda, r.gesper, r.formula, r.coincide]),
+    [["A03.ROT.CAJAS_FALT", "D548", 16, true, true]]);
+  assert.equal(plan.grupos.filter((g) => g.id === "ROT")[0].referencias.length, 1);
+
+  const { rangos } = instalarGesper(gesperA03());
+  const vista = await prepararCarga(ev, A03);
+  const r = await ejecutarCarga(ev, A03, vista, ["ROT"]);
+  assert.deepEqual(rangos.D548.formulas, [["=D546-D547"]]);
+  assert.equal(r.referencias[0].despues, 16, "se relee después del recálculo");
+});
+
+test("A03: un rótulo de GESPER que es fórmula se compara por su valor calculado", () => {
+  const plan = planA03(evaluarA03());
+  assert.ok(celdasDe(plan).includes("M697"));
+  const movida = planA03(evaluarA03(), { B697: { f: "=CONCATENATE(B1)", v: "Otra fila" } });
+  assert.match(motivoDe(movida, "A03.RMEN.VOL.Y02"), /etiqueta de GESPER en B697 \(«Otra fila»\)/);
+});
+
+test("A03: el redondeo binario no es un cambio, un ajuste de decimales no pide confirmación y 0,0056 m sí es un cambio", () => {
+  const plan = planA03(evaluarA03());
+  const e = (celda) => plan.escrituras.filter((x) => x.celda === celda)[0];
+  assert.deepEqual([e("L509").cambia, e("L509").ajuste], [false, false], "92653.6 contra 92653.59999999999");
+  assert.deepEqual([e("L623").cambia, e("L623").ajuste], [false, true], "30582.84 contra 30582.8415: se escribe, sin confirmar");
+  assert.equal(e("D673").cambia, true, "longitud de redes, H-07");
+  assert.equal(e("D501").cambia, true, "15 -> 14, H-05");
+  assert.equal(plan.cambios, 2);
+  assert.equal(plan.ajustes, 1);
+  assert.equal(coinciden(16, 16.004), true);
+  assert.equal(coinciden(16, "16"), false);
+});
+
+test("A03: resume por grupo qué pide revisión, y la selección inicial deja marcados solo los grupos limpios", () => {
+  const plan = planA03(evaluarA03());
+  const g = Object.fromEntries(plan.grupos.map((x) => [x.id, x]));
+  assert.deepEqual(plan.grupos.map((x) => x.id), ["ERP", "FIJ", "ROT", "MOD", "DAN", "DET", "RMEN"]);
+  assert.equal(g.ERP.sitio, SITIO_A03.ERP);
+  assert.equal(g.ERP.programa, "P3");
+  assert.deepEqual([g.ERP.cambios, g.ERP.avisos.length, g.ERP.controles.length], [1, 1, 1], "MANT_TOT, la advertencia y el COBERT");
+  assert.equal(g.MOD.revisar, true);
+  assert.equal(g.MOD.omitidos.length, 1, "incompleto: ACT en REVISAR");
+  assert.equal(g.DAN.omitidos.length, 1);
+  assert.deepEqual(seleccionInicial(plan), { ERP: false, FIJ: true, ROT: true, MOD: false, DAN: false, DET: false, RMEN: true });
+});
+
+test("A03: ejecutarCarga escribe solo los grupos marcados, en un lote y con un solo recálculo", async () => {
+  const { stats, rangos } = instalarGesper(gesperA03());
+  const ev = evaluarA03();
+  const vista = await prepararCarga(ev, A03);
+  const r = await ejecutarCarga(ev, A03, vista, ["FIJ", "DET"]);
+  assert.deepEqual(r.escrituras.map((e) => e.celda).sort(), ["D530", "D673", "L533"]);
+  assert.equal(r.escritos, 3);
+  assert.equal(r.cambiados, 1, "D673");
+  assert.deepEqual(r.grupos, ["FIJ", "DET"]);
+  assert.deepEqual(rangos.D673.values, [[1532829.0556638443]]);
+  assert.deepEqual(rangos.D501.values, [[15]], "ERP no se marcó: GESPER conserva el 15");
+  assert.equal(stats.calculateCalls, 1);
+});
+
+test("A03: sin ningún grupo marcado, o si GESPER cambió desde la vista previa, no se escribe nada", async () => {
+  const { stats, rangos } = instalarGesper(gesperA03());
+  const ev = evaluarA03();
+  const vista = await prepararCarga(ev, A03);
+  await assert.rejects(() => ejecutarCarga(ev, A03, vista, []), /No marcaste ningún grupo/);
+  await assert.rejects(() => ejecutarCarga(ev, A03, null, ["FIJ"]), /necesita tu confirmación/);
+  rangos.D530.values = [[119]]; // alguien editó GESPER después de ver la vista previa
+  const err = await ejecutarCarga(ev, A03, vista, ["FIJ"]).then(() => null, (e) => e);
+  assert.match(err.message, /cambió desde la vista previa/);
+  assert.ok(err.planActual.grupos.filter((g) => g.id === "FIJ")[0].requiereConfirmacion, "ahora FIJ trae un cambio");
+  assert.deepEqual(rangos.L533.values, [[6]]);
+  assert.equal(stats.calculateCalls, 0);
+});
+
+test("A03: nunca escribe banderas ni celdas de horizonte, y avisa un año N/A aunque la bandera esté encima de la fila", () => {
+  const filas = filasA03().concat([
+    fila({ ID: "A03.ROT.HORIZ", TIPO_FILA: "DATO", PROGRAMA: "P3", VALOR: 5, ESTADO: "OK", DESTINO_CELDA: "D545",
+      DESTINO_ETIQUETA: "Tiempo estimado para inversión total - Años de priorización" }),
+    fila({ ID: "A03.ROT.BANDERA.Y01", TIPO_FILA: "DATO", PROGRAMA: "P3", ANIO_IDX: 1, VALOR: 1, ESTADO: "OK", DESTINO_CELDA: "L555", DESTINO_ETIQUETA: ETQ_CONTEMPLADO })
+  ]);
+  const plan = planA03(evaluarA03({ filas }), { L503: "N/A" });
+  assert.match(motivoDe(plan, "A03.ROT.HORIZ"), /D545 es una celda de horizonte/);
+  assert.match(motivoDe(plan, "A03.ROT.BANDERA.Y01"), /contemplado/);
+  // L509 (volumen de mantenimiento de ERP's) va debajo de su bandera, la fila 503.
+  assert.deepEqual(plan.avisos.filter((a) => a.tipo === "HORIZONTE").map((a) => a.fila.ID), ["A03.ERP.VOL_MANT.Y01"]);
 });

@@ -7,7 +7,7 @@ import { H, ANCLAS } from "../config/cellMap.js";
 import { parseNum } from "../utils/format.js";
 import { state } from "./state.js";
 import {
-  pintaTodo, pintaDatos, pintaFormP9, pintaResultados, pintaResultadoDiag, pintaAnexos, errBox
+  pintaTodo, pintaDatos, pintaFormP9, pintaResultados, pintaResultadoDiag, pintaAnexos, pintaBotonCargaAnexo, errBox
 } from "./render.js";
 import {
   escribirRango, irA as excelIrA, buscarFilaPorEtiqueta, ejecutarDiagnostico
@@ -16,6 +16,7 @@ import { cargarModelo } from "../domain/repositories/modeloRepository.js";
 import {
   anexoPorId, leerArchivoAnexo, prepararCarga, ejecutarCarga
 } from "../domain/repositories/anexosRepository.js";
+import { seleccionInicial } from "../domain/anexos/salidaGesper.js";
 
 function $(id) { return document.getElementById(id); }
 function foot(msg, cls) { var f = $("foot"); f.textContent = msg; f.className = cls || ""; }
@@ -91,6 +92,15 @@ function reiniciarAnexo(anexoId) {
   A.fase = "inicio";
   A.archivo = A.evaluacion = A.plan = A.resultado = A.error = null;
   A.confirmado = false;
+  A.grupos = {};
+}
+
+/** Nuevo plan en pantalla: la confirmación y los grupos marcados se vuelven a pedir. */
+function ponerPlan(plan) {
+  var A = state.anexos;
+  A.plan = plan;
+  A.confirmado = false;
+  A.grupos = seleccionInicial(plan);
 }
 
 async function leerAnexo(file) {
@@ -103,7 +113,7 @@ async function leerAnexo(file) {
   foot("Leyendo " + file.name + "…");
   try {
     A.evaluacion = await leerArchivoAnexo(await file.arrayBuffer(), anexo);
-    A.plan = await prepararCarga(A.evaluacion, anexo);
+    ponerPlan(await prepararCarga(A.evaluacion, anexo));
     A.fase = "vista";
     foot("Anexo leído · " + A.plan.escrituras.length + " datos listos para cargar" +
       (A.plan.omitidos.length ? " · " + A.plan.omitidos.length + " omitidos" : ""), A.plan.bloqueo ? "err" : "ok");
@@ -118,7 +128,10 @@ async function leerAnexo(file) {
 async function cargarAnexo() {
   var A = state.anexos;
   var anexo = anexoPorId(A.anexoId);
-  if (!A.plan || (A.plan.requiereConfirmacion && !A.confirmado)) return;
+  if (!A.plan) return;
+  // Carga por grupo (A03): marcar un grupo es confirmarlo; se escriben solo los marcados.
+  var elegidos = Object.keys(A.grupos).filter(function (g) { return A.grupos[g]; });
+  if (anexo.cargaPorGrupo ? !elegidos.length : (A.plan.requiereConfirmacion && !A.confirmado)) return;
   A.fase = "cargando";
   A.error = null;
   pintaAnexos();
@@ -126,7 +139,9 @@ async function cargarAnexo() {
   try {
     // La confirmación queda atada al plan que el usuario vio: si GESPER cambió
     // desde la vista previa, ejecutarCarga no escribe y devuelve el plan nuevo.
-    A.resultado = await ejecutarCarga(A.evaluacion, anexo, A.confirmado ? A.plan : null);
+    A.resultado = anexo.cargaPorGrupo
+      ? await ejecutarCarga(A.evaluacion, anexo, A.plan, elegidos)
+      : await ejecutarCarga(A.evaluacion, anexo, A.confirmado ? A.plan : null);
     A.plan = A.resultado.plan;
     A.fase = "resumen";
     await refrescar();
@@ -134,7 +149,7 @@ async function cargarAnexo() {
   } catch (e) {
     A.fase = "vista";
     A.error = e && e.message ? e.message : String(e);
-    if (e && e.planActual) { A.plan = e.planActual; A.confirmado = false; }
+    if (e && e.planActual) ponerPlan(e.planActual);
     foot("No se cargó el anexo: " + A.error, "err");
   }
   pintaAnexos();
@@ -211,8 +226,15 @@ document.addEventListener("change", function (ev) {
   if (t.id === "anexoArchivo" && t.files && t.files[0]) { var f = t.files[0]; t.value = ""; leerAnexo(f); return; }
   if (t.id === "anxConfirma") {
     state.anexos.confirmado = t.checked;
-    var b = $("btnCargarAnexo");
-    if (b) b.disabled = !t.checked;
+    pintaBotonCargaAnexo();
+    return;
+  }
+  var grupo = t.getAttribute ? t.getAttribute("data-grupo") : null;
+  if (grupo) {
+    state.anexos.grupos[grupo] = t.checked;
+    var tarjeta = t.closest(".anx-grp");
+    if (tarjeta) tarjeta.classList.toggle("on", t.checked);
+    pintaBotonCargaAnexo(); // sin repintar: no se cierran los detalles abiertos
   }
 });
 

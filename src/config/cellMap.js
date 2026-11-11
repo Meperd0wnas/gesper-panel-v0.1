@@ -155,5 +155,38 @@ export const ANEXOS = [
       { desde: 463, hasta: 466, fila: 467 }, // 2.2 válvulas
       { desde: 477, hasta: 482, fila: 483 }  // 2.3 aislamiento
     ]
+  },
+  {
+    // Especificacion_SALIDA_GESPER_A03 v1.1: tres programas y diez grupos
+    // independientes (segundo segmento del ID: ERP, AUT, FIJ, ROT, MOD, DAN,
+    // DET, RMEN, RMAT, ACOM). cargaPorGrupo: el usuario elige qué grupos
+    // cargar y confirma cada uno que traiga cambios, advertencias o datos en
+    // REVISAR (spec A03 §6 pasos 2-3). Los bloques de horizonte van de la fila
+    // del título del subprograma a su B/C parcial: en P3, P5 y P6 la bandera
+    // queda en medio del bloque (los volúmenes recuperados van debajo de ella).
+    id: "A03",
+    nombre: "Anexo 3 — Presiones, daños y fugas (P3, P5, P6)",
+    programas: ["P3", "P5", "P6"],
+    hojaDestino: H.EVT,
+    filaAnios: 2,
+    filaAniosCalendario: 3,
+    alcanceControles: "concepto",
+    cargaPorGrupo: true,
+    filasBandera: [503, 517, 535, 555, 570, 581, 592, 609, 625, 661, 678, 692, 705, 718],
+    // Horizonte y periodos que el anexo no entrega (spec A03 §8, A03.GEN.HORIZONTE),
+    // más los «Tiempo estimado para inversión total» de los demás subprogramas.
+    celdasProtegidas: ["D494", "D514", "D528", "D545", "D565", "D602", "D619", "D620", "D654", "D689", "D702", "D715"],
+    banderasHorizonte: [
+      { desde: 493, hasta: 511, fila: 503 }, // 3.1 ERP's
+      { desde: 513, hasta: 524, fila: 517 }, // 3.2 gestión automática
+      { desde: 527, hasta: 542, fila: 535 }, // 3.3.1 equipos fijos
+      { desde: 544, hasta: 562, fila: 555 }, // 3.3.2 equipos rotativos
+      { desde: 618, hasta: 632, fila: 625 }, // 3.4 modelo hidráulico
+      { desde: 653, hasta: 669, fila: 661 }, // 5.1 atención de daños
+      { desde: 672, hasta: 685, fila: 678 }, // 6.1 detección
+      { desde: 688, hasta: 699, fila: 692 }, // 6.2.1 redes menores
+      { desde: 701, hasta: 712, fila: 705 }, // 6.2.2 redes matrices
+      { desde: 714, hasta: 725, fila: 718 }  // 6.2.3 acometidas
+    ]
   }
 ];

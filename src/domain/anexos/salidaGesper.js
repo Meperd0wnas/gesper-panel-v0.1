@@ -32,6 +32,18 @@ export const COLUMNAS = [
 
 const ESTADOS_CARGABLES = ["OK", "ADVERTENCIA"];
 const ESTADOS_GLOBALES = ["OK", "OK CON ADVERTENCIAS", "REVISAR"];
+/** Prefijos de los CONTROL que verifican un concepto: sumas (CTRL_) y cobertura de la hoja fuente (COBERT_, spec A03). */
+const PREFIJOS_CONTROL = ["CTRL_", "COBERT_"];
+
+/**
+ * Diferencia por debajo de la cual un valor del anexo no se cuenta como
+ * cambio, aunque se escriba igual: GESPER guarda varias celdas con 2
+ * decimales y el anexo no redondea (spec A03 §3, columna Q). Con 0,005
+ * coincide el conteo de la spec A03 §11 (147 de 157 iguales): la calibración
+ * del modelo (30.582,84 contra 30.582,8415) es un ajuste de decimales y la
+ * longitud de redes (diferencia de 0,0056 m, H-07) es un cambio.
+ */
+export const TOLERANCIA_DECIMALES = 0.005;
 
 /** Compara textos de Excel sin que cuenten espacios dobles, no separables o la forma Unicode. */
 export function normalizarTexto(s) {
@@ -136,10 +148,18 @@ export function interpretarSalida(libro) {
 
 /* ---------- 2. clasificación ---------- */
 
+/** Grupo de un ID: su segundo segmento ("A03.ERP.INST.R6.Y02" -> "ERP"); "" si no tiene. */
+export function grupoDe(id) {
+  var p = String(id == null ? "" : id).split(".");
+  return p.length > 2 ? p[1] : "";
+}
+
 /**
  * Qué datos invalida un CONTROL en REVISAR, según `anexo.alcanceControles`:
- *  - "concepto" (A01, spec v1 §6): A01.CAP.CTRL_INST invalida A01.CAP.INST.*;
- *    A01.CAP.CTRL_REEMP invalida A01.CAP.REEMP.* y A01.CAP.REEMP_TOT.
+ *  - "concepto" (A01, spec v1 §6; A03, spec A03 §6 "la serie"):
+ *    A01.CAP.CTRL_INST invalida A01.CAP.INST.*; A01.CAP.CTRL_REEMP invalida
+ *    A01.CAP.REEMP.* y A01.CAP.REEMP_TOT; A03.DAN.CTRL_TAD invalida
+ *    A03.DAN.TAD.* pero no A03.DAN.CAPAC.*. Vale igual para COBERT_.
  *  - "grupo" (A02, spec A02 §6): cualquier control de A02.VAL.* invalida
  *    todos los datos A02.VAL.*.
  */
@@ -147,9 +167,15 @@ function controlCubre(idControl, idDato, alcance) {
   var c = idControl.split("."), d = idDato.split(".");
   if (c.length < 3 || d.length < 3 || c[1] !== d[1]) return false;
   if (alcance === "grupo") return true;
-  if (c[2].indexOf("CTRL_") !== 0) return false;
-  var concepto = c[2].slice(5);
+  var prefijo = PREFIJOS_CONTROL.filter(function (p) { return c[2].indexOf(p) === 0; })[0];
+  if (!prefijo) return false;
+  var concepto = c[2].slice(prefijo.length);
   return d[2] === concepto || d[2].indexOf(concepto + "_") === 0;
+}
+
+/** "MOD DAN" o "MOD, DAN" -> ["MOD","DAN"]. */
+function listaGrupos(v) {
+  return normalizarTexto(v).toUpperCase().split(/[\s,;]+/).filter(function (g) { return /^[A-Z0-9_]+$/.test(g); });
 }
 
 /** "P3, P5 y P6" -> ["P3","P5","P6"]. */
@@ -175,16 +201,31 @@ export function evaluarAnexo(salida, anexo) {
 
   var ev = {
     meta: meta, version: salida.version, totalFilas: salida.filas.length,
-    datos: [], candidatos: [], omitidos: [], controles: [], controlesRevisar: [], noDisponibles: [], otras: [],
+    datos: [], candidatos: [], omitidos: [], controles: [], controlesRevisar: [], controlesAdvertencia: [],
+    noDisponibles: [], otras: [], gruposRevisar: [], cargaParcial: false,
     bloqueo: null
   };
 
   salida.filas.forEach(function (f) {
     if (f.TIPO_FILA === "DATO") ev.datos.push(f);
-    else if (f.TIPO_FILA === "CONTROL") { ev.controles.push(f); if (f.ESTADO === "REVISAR") ev.controlesRevisar.push(f); }
+    else if (f.TIPO_FILA === "CONTROL") {
+      ev.controles.push(f);
+      if (f.ESTADO === "REVISAR") ev.controlesRevisar.push(f);
+      else if (f.ESTADO === "ADVERTENCIA") ev.controlesAdvertencia.push(f);
+    }
     else if (f.TIPO_FILA === "NO_DISPONIBLE") ev.noDisponibles.push(f);
     else ev.otras.push(f);
   });
+
+  // Grupos con alguna fila en REVISAR: los que declara GRUPOS_REVISAR (spec
+  // 1.1; los anexos 1.0 no la traen) más los que se ven en las filas.
+  var declarados = listaGrupos(meta.GRUPOS_REVISAR);
+  salida.filas.forEach(function (f) {
+    if ((f.TIPO_FILA === "DATO" || f.TIPO_FILA === "CONTROL") && f.ESTADO === "REVISAR" && f.ID.indexOf(anexo.id + ".") === 0) {
+      declarados.push(grupoDe(f.ID));
+    }
+  });
+  declarados.forEach(function (g) { if (g && ev.gruposRevisar.indexOf(g) < 0) ev.gruposRevisar.push(g); });
 
   ev.datos.forEach(function (f) {
     if (f.ID.indexOf(anexo.id + ".") !== 0) { ev.omitidos.push({ fila: f, motivo: "El ID no empieza por " + anexo.id + ".: no es un dato de este anexo." }); return; }
@@ -201,7 +242,12 @@ export function evaluarAnexo(salida, anexo) {
 
   var global = normalizarTexto(meta.ESTADO_GLOBAL).toUpperCase();
   if (global === "REVISAR") {
-    ev.bloqueo = "El anexo está en REVISAR: hay datos o controles que no cuadran. Corrígelos en el anexo, actualiza y guarda antes de cargar.";
+    // Desde la spec 1.1 (§6 paso 2, §10) un REVISAR global bloquea solo las
+    // filas en REVISAR, que ya quedaron omitidas arriba; el resto del anexo se
+    // carga con confirmación. En 1.0 bloquea todo. Si no se puede saber qué
+    // grupos están en REVISAR, también se bloquea todo.
+    if (salida.version && salida.version.menor >= 1 && ev.gruposRevisar.length) ev.cargaParcial = true;
+    else ev.bloqueo = "El anexo está en REVISAR: hay datos o controles que no cuadran. Corrígelos en el anexo, actualiza y guarda antes de cargar.";
   } else if (ESTADOS_GLOBALES.indexOf(global) < 0) {
     ev.bloqueo = "ESTADO_GLOBAL desconocido («" + meta.ESTADO_GLOBAL + "»). No se carga.";
   }
@@ -217,11 +263,27 @@ function banderaDe(anexo, fila) {
 }
 
 /**
+ * CONTROL con destino en GESPER (A02.AIS.VERIF, A03.ROT.CAJAS_FALT...):
+ * referencias que solo se leen para comparar con lo que GESPER calcula. En
+ * GESPER esas celdas son fórmulas y nunca se escriben (spec A03 §4).
+ */
+function controlesConDestino(evaluacion, anexo) {
+  return evaluacion.controles.filter(function (f) {
+    return parsearCelda(f.DESTINO_CELDA) && normalizarTexto(f.DESTINO_HOJA) === normalizarTexto(anexo.hojaDestino);
+  });
+}
+
+/**
  * Celdas de la hoja destino que planificarCarga necesita: etiqueta (B), año
- * (fila de años), año calendario (solo para mostrarlo), destino y bandera de horizonte.
+ * (fila de años), año calendario (solo para mostrarlo), destino, bandera de
+ * horizonte y las celdas de referencia de los CONTROL (solo lectura).
  */
 export function direccionesAInspeccionar(evaluacion, anexo) {
   var set = {};
+  controlesConDestino(evaluacion, anexo).forEach(function (f) {
+    var c = parsearCelda(f.DESTINO_CELDA);
+    set[c.columna + c.fila] = 1;
+  });
   evaluacion.candidatos.forEach(function (f) {
     var c = parsearCelda(f.DESTINO_CELDA);
     if (!c) return;
@@ -272,29 +334,56 @@ function motivoDestino(f, c, insp, anexo, ocupadas) {
   return null;
 }
 
+/** Iguales salvo el redondeo binario de Excel (92653.6 contra 92653.59999999999). */
+function mismoNumero(a, b) {
+  return Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(a), Math.abs(b));
+}
+
+/**
+ * Cómo cambia una celda si se escribe `valor`: "igual", "ajuste" (solo
+ * decimales por debajo de TOLERANCIA_DECIMALES; se escribe sin pedir
+ * confirmación) o "cambio". Una celda vacía o con texto siempre cambia.
+ */
+function comparar(actual, valor) {
+  if (typeof actual !== "number") return "cambio";
+  if (mismoNumero(actual, valor)) return "igual";
+  return Math.abs(actual - valor) < TOLERANCIA_DECIMALES ? "ajuste" : "cambio";
+}
+
+/** Dos números que el panel trata como el mismo valor (igual o solo ajuste de decimales). */
+export function coinciden(a, b) {
+  return typeof a === "number" && typeof b === "number" && comparar(a, b) !== "cambio";
+}
+
 /**
  * Cruza los candidatos con lo que hoy tiene GESPER (inspeccion =
  * resultado de excelService.leerCeldas sobre direccionesAInspeccionar).
  *
  * La confirmación del usuario se exige si hay avisos, si el anexo está en
- * OK CON ADVERTENCIAS o si algún valor nuevo difiere del que hoy tiene
- * GESPER (p. ej. un 0 del anexo que reemplaza un 10): regla general, no una
- * excepción por celda.
+ * OK CON ADVERTENCIAS, si el anexo está en REVISAR y se carga en parte
+ * (spec 1.1) o si algún valor nuevo difiere del que hoy tiene GESPER (p. ej.
+ * un 0 del anexo que reemplaza un 10): regla general, no una excepción por celda.
+ *
+ * Con `anexo.cargaPorGrupo` la confirmación se pide por grupo (`grupos`):
+ * cada grupo que tenga cambios, advertencias, controles en ADVERTENCIA o
+ * REVISAR, o datos omitidos (grupo incompleto) se confirma por separado.
  *
  * @returns {{
- *   escrituras: Array<{fila: Object, hoja: string, celda: string, valor: number, actual: any, cambia: boolean,
- *                      anio: number|null, anioCalendario: any}>,
+ *   escrituras: Array<{fila: Object, grupo: string, hoja: string, celda: string, valor: number, actual: any,
+ *                      cambia: boolean, ajuste: boolean, anio: number|null, anioCalendario: any}>,
  *   omitidos: Array<{fila: Object, motivo: string}>,
  *   avisos: Array<{fila: Object, tipo: string, texto: string}>,
- *   cambios: number,
+ *   referencias: Array<{fila: Object, grupo: string, celda: string, gesper: any, formula: boolean, coincide: boolean}>,
+ *   grupos: Array<Object>,
+ *   cambios: number, ajustes: number,
  *   requiereConfirmacion: boolean,
  *   bloqueo: string|null
  * }}
  */
 export function planificarCarga(evaluacion, inspeccion, anexo) {
   var plan = {
-    escrituras: [], omitidos: evaluacion.omitidos.slice(), avisos: [], cambios: 0,
-    requiereConfirmacion: false, bloqueo: evaluacion.bloqueo
+    escrituras: [], omitidos: evaluacion.omitidos.slice(), avisos: [], referencias: [], grupos: [],
+    cambios: 0, ajustes: 0, requiereConfirmacion: false, bloqueo: evaluacion.bloqueo
   };
   if (!inspeccion.hojaExiste) {
     plan.bloqueo = "El libro abierto no tiene la hoja " + anexo.hojaDestino + ". Abre el libro GESPER antes de cargar el anexo.";
@@ -311,9 +400,10 @@ export function planificarCarga(evaluacion, inspeccion, anexo) {
     ocupadas[celda] = f.ID;
     var actual = (inspeccion.celdas[celda] || {}).valor;
     var anual = !vacio(f.ANIO_IDX);
+    var cmp = comparar(actual, f.VALOR);
     plan.escrituras.push({
-      fila: f, hoja: anexo.hojaDestino, celda: celda, valor: f.VALOR, actual: actual,
-      cambia: !(typeof actual === "number" && actual === f.VALOR),
+      fila: f, grupo: grupoDe(f.ID), hoja: anexo.hojaDestino, celda: celda, valor: f.VALOR, actual: actual,
+      cambia: cmp === "cambio", ajuste: cmp === "ajuste",
       anio: anual ? Number(f.ANIO_IDX) : null,
       anioCalendario: anual && anexo.filaAniosCalendario ? (inspeccion.celdas[c.columna + anexo.filaAniosCalendario] || {}).valor : null
     });
@@ -335,9 +425,66 @@ export function planificarCarga(evaluacion, inspeccion, anexo) {
     }
   });
 
+  controlesConDestino(evaluacion, anexo).forEach(function (f) {
+    var c = parsearCelda(f.DESTINO_CELDA), celda = c.columna + c.fila;
+    var g = inspeccion.celdas[celda] || {};
+    plan.referencias.push({
+      fila: f, grupo: grupoDe(f.ID), celda: celda, gesper: g.valor, formula: hasFormula([[g.formula]]),
+      coincide: coinciden(g.valor, f.VALOR)
+    });
+  });
+
   plan.cambios = plan.escrituras.filter(function (e) { return e.cambia; }).length;
-  plan.requiereConfirmacion = plan.avisos.length > 0 || plan.cambios > 0 || evaluacion.estadoGlobal === "OK CON ADVERTENCIAS";
+  plan.ajustes = plan.escrituras.filter(function (e) { return e.ajuste; }).length;
+  plan.grupos = resumirGrupos(evaluacion, plan);
+  plan.requiereConfirmacion = plan.avisos.length > 0 || plan.cambios > 0 || evaluacion.estadoGlobal === "OK CON ADVERTENCIAS" ||
+    evaluacion.cargaParcial || (!!anexo.cargaPorGrupo && plan.grupos.some(function (g) { return g.requiereConfirmacion; }));
   return plan;
+}
+
+/**
+ * Un resumen por grupo (segundo segmento del ID), en el orden del anexo:
+ * qué se escribe, qué cambia, qué se omite y qué hay que confirmar. Lo usa la
+ * carga por grupo (A03) y el resumen de la vista previa.
+ */
+function resumirGrupos(evaluacion, plan) {
+  var orden = [], por = {};
+  function grupo(f) {
+    var id = grupoDe(f.ID);
+    if (!por[id]) {
+      por[id] = {
+        id: id, sitio: normalizarTexto(f.SITIO), programa: normalizarTexto(f.PROGRAMA).toUpperCase(),
+        datos: 0, escrituras: [], omitidos: [], avisos: [], controles: [], referencias: [],
+        cambios: 0, ajustes: 0, revisar: evaluacion.gruposRevisar.indexOf(id) >= 0, requiereConfirmacion: false
+      };
+      orden.push(por[id]);
+    }
+    return por[id];
+  }
+  evaluacion.datos.forEach(function (f) { grupo(f).datos++; });
+  plan.escrituras.forEach(function (e) { grupo(e.fila).escrituras.push(e); });
+  plan.omitidos.forEach(function (o) { grupo(o.fila).omitidos.push(o); });
+  plan.avisos.forEach(function (a) { grupo(a.fila).avisos.push(a); });
+  evaluacion.controlesRevisar.concat(evaluacion.controlesAdvertencia).forEach(function (f) { if (por[grupoDe(f.ID)]) por[grupoDe(f.ID)].controles.push(f); });
+  plan.referencias.forEach(function (r) { if (por[r.grupo]) por[r.grupo].referencias.push(r); });
+  orden.forEach(function (g) {
+    g.cambios = g.escrituras.filter(function (e) { return e.cambia; }).length;
+    g.ajustes = g.escrituras.filter(function (e) { return e.ajuste; }).length;
+    g.requiereConfirmacion = g.escrituras.length > 0 &&
+      (g.cambios > 0 || g.avisos.length > 0 || g.controles.length > 0 || g.revisar || g.omitidos.length > 0);
+  });
+  return orden;
+}
+
+/**
+ * Selección inicial de la carga por grupo: marcados los grupos que se pueden
+ * cargar sin confirmar; sin marcar los que piden revisión (el usuario los
+ * marca después de verlos). Los grupos sin nada que escribir no aparecen.
+ */
+export function seleccionInicial(plan) {
+  var sel = {};
+  plan.grupos.forEach(function (g) { if (g.escrituras.length) sel[g.id] = !g.requiereConfirmacion; });
+  return sel;
 }
 
 /**
