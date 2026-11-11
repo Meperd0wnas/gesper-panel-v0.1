@@ -386,6 +386,23 @@ function tablaEscrituras(lista) {
   return h + '</tbody></table></div>';
 }
 
+/** Cada valor que cambia en GESPER, con su contexto: qué es, de qué grupo, en qué celda y año, y actual → nuevo. */
+function listaCambios(cambian) {
+  var h = '<div class="chg-list">';
+  cambian.forEach(function (e) {
+    var anio = e.anio === null ? "" : " · año " + e.anio + (e.anioCalendario ? " (" + esc(e.anioCalendario) + ")" : "");
+    var vacia = e.actual === null || e.actual === undefined || e.actual === "";
+    h += '<div class="anx-chg"><div class="tt">' + esc(e.fila.CONCEPTO) + '</div>' +
+      '<div class="mt">' + esc(e.fila.SITIO || "") + ' · <code>' + esc(e.celda) + '</code>' + anio + '</div>' +
+      '<div class="vv"><span class="' + (vacia ? "text-muted" : "old") + '">' + celdaTxt(e.actual) + '</span><span class="arr">→</span>' +
+      '<span class="new">' + esc(e.valor) + '</span></div>' +
+      (e.valor === 0 && typeof e.actual === "number" && e.actual !== 0
+        ? '<div class="nt text-warning">El anexo trae 0: reemplaza el ' + esc(e.actual) + ' que hoy tiene GESPER.</div>' : '') +
+      '</div>';
+  });
+  return h + '</div>';
+}
+
 function listaOmitidos(omitidos) {
   var h = '';
   omitidos.forEach(function (o) {
@@ -444,13 +461,17 @@ export function pintaAnexos() {
   h += '<div class="idc"><div class="co">' + esc(A.archivo.nombre) + '</div><div class="mt">' +
     'Anexo ' + esc(meta.ANEXO_ID) + ' · programas ' + esc(meta.PROGRAMAS || "—") + ' · especificación ' + esc(meta.SPEC_VERSION) + '<br>' +
     (A.archivo.modificado ? 'Guardado ' + esc(A.archivo.modificado.toLocaleString("es-CO")) + ' · ' : '') +
-    Math.max(1, Math.round(A.archivo.tamano / 1024)) + ' KB</div></div>';
+    (A.archivo.tamano >= 1048576 ? fmt(A.archivo.tamano / 1048576, 1) + ' MB' : Math.max(1, Math.round(A.archivo.tamano / 1024)) + ' KB') + '</div></div>';
 
   if (A.fase === "resumen") {
     var r = A.resultado;
     h += sig("k", "Carga completada", "Se escribieron <b>" + r.escritos + "</b> valores en <code>" + esc(anexo.hojaDestino) + "</code>" +
-      " (" + r.cambiados + " cambiaron) y GESPER recalculó una vez." +
+      " (" + r.cambiados + (r.cambiados === 1 ? " cambió" : " cambiaron") + ") y GESPER recalculó una vez." +
       (plan.omitidos.length ? " Se omitieron <b>" + plan.omitidos.length + "</b>." : ""));
+    if (cambian.length) {
+      h += '<details class="anx-det"><summary>' + (cambian.length === 1 ? 'Ver el valor que cambió' : 'Ver los ' + cambian.length + ' valores que cambiaron') +
+        '</summary>' + listaCambios(cambian) + '</details>';
+    }
     if (plan.omitidos.length) {
       h += '<details class="anx-det"><summary>Ver los ' + plan.omitidos.length + ' datos omitidos y por qué</summary>' + listaOmitidos(plan.omitidos) + '</details>';
     }
@@ -479,7 +500,11 @@ export function pintaAnexos() {
     '</div>';
 
   // Advertencias y problemas
-  if (plan.avisos.length || ev.controlesRevisar.length || plan.omitidos.length) h += '<div class="sec">Advertencias y problemas</div>';
+  if (plan.avisos.length || ev.controlesRevisar.length || plan.omitidos.length || cambian.length) h += '<div class="sec">Advertencias y problemas</div>';
+  if (cambian.length) {
+    h += sig("w", (cambian.length === 1 ? "1 valor cambia" : cambian.length + " valores cambian") + " en GESPER",
+      "El anexo reemplaza lo que hoy tiene el libro. Revisa cada diferencia en la vista previa antes de confirmar.");
+  }
   plan.avisos.forEach(function (a) {
     h += sig("w", (a.tipo === "HORIZONTE" ? "Año fuera del horizonte · " : "Advertencia · ") + idCorto(a.fila.ID),
       esc(a.fila.CONCEPTO) + ' <code>' + esc(a.fila.DESTINO_CELDA) + '</code><br>' + esc(a.texto));
@@ -496,7 +521,12 @@ export function pintaAnexos() {
 
   // Vista previa
   h += '<div class="sec">Vista previa · ' + plan.escrituras.length + ' datos</div>';
-  if (cambian.length) h += tablaEscrituras(cambian);
+  if (cambian.length) {
+    h += '<p class="note">Valores que cambian en GESPER (actual → nuevo):</p>' + listaCambios(cambian);
+    if (plan.escrituras.length > cambian.length) {
+      h += '<p class="note">Los otros ' + (plan.escrituras.length - cambian.length) + ' valores coinciden con los que hoy tiene GESPER.</p>';
+    }
+  }
   else if (plan.escrituras.length) h += '<div class="card"><p>Los ' + plan.escrituras.length + ' valores coinciden con los que hoy tiene GESPER.</p></div>';
   if (plan.escrituras.length) {
     h += '<details class="anx-det"><summary>Ver los ' + plan.escrituras.length + ' datos a cargar</summary>' + tablaEscrituras(plan.escrituras) + '</details>';
@@ -506,7 +536,11 @@ export function pintaAnexos() {
   // Confirmación
   var puede = !plan.bloqueo && plan.escrituras.length > 0;
   if (puede && plan.requiereConfirmacion) {
-    h += '<label class="chk"><input type="checkbox" id="anxConfirma"' + (A.confirmado ? " checked" : "") + '> Revisé las advertencias y quiero cargar estos datos</label>';
+    var revise = [];
+    if (cambian.length) revise.push(cambian.length === 1 ? "el valor que cambia" : "los " + cambian.length + " valores que cambian");
+    if (plan.avisos.length || ev.estadoGlobal === "OK CON ADVERTENCIAS") revise.push("las advertencias");
+    h += '<label class="chk"><input type="checkbox" id="anxConfirma"' + (A.confirmado ? " checked" : "") + '> Revisé ' +
+      revise.join(" y ") + ' y quiero cargar estos datos</label>';
   }
   var habilitado = puede && (!plan.requiereConfirmacion || A.confirmado);
   h += '<div class="btn-row">' +

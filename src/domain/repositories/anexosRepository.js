@@ -12,7 +12,7 @@ import { ANEXOS } from "../../config/cellMap.js";
 import { leerXlsx } from "../../utils/xlsx.js";
 import { leerCeldas, escribirCampos } from "../../services/excelService.js";
 import {
-  HOJA_SALIDA, interpretarSalida, evaluarAnexo, direccionesAInspeccionar, planificarCarga
+  HOJA_SALIDA, interpretarSalida, evaluarAnexo, direccionesAInspeccionar, planificarCarga, firmaPlan
 } from "../anexos/salidaGesper.js";
 
 export function anexoPorId(id) {
@@ -38,10 +38,22 @@ export async function prepararCarga(evaluacion, anexo) {
  * Vuelve a validar (el usuario pudo editar GESPER desde la vista previa) y
  * escribe todos los valores en un solo lote: una ejecución de Excel.run, un
  * recálculo, y la guarda anti-fórmula de escribirCampos como segunda barrera.
+ *
+ * @param {Object|null} planConfirmado el plan que el usuario vio y confirmó
+ *   (null si no confirmó). Si la carga requiere confirmación y no la hay, o
+ *   si lo que hay hoy en GESPER ya no es lo que el usuario vio, no se escribe
+ *   nada: se lanza un Error con `planActual` para volver a mostrar la vista previa.
  */
-export async function ejecutarCarga(evaluacion, anexo) {
+export async function ejecutarCarga(evaluacion, anexo, planConfirmado) {
   var plan = await prepararCarga(evaluacion, anexo);
   if (plan.bloqueo) throw new Error(plan.bloqueo);
+  if (plan.requiereConfirmacion && !(planConfirmado && firmaPlan(planConfirmado) === firmaPlan(plan))) {
+    var e = new Error(planConfirmado
+      ? "GESPER cambió desde la vista previa. No se escribió nada: revisa de nuevo los valores y confirma."
+      : "Esta carga necesita tu confirmación. No se escribió nada.");
+    e.planActual = plan;
+    throw e;
+  }
   if (plan.escrituras.length) {
     await escribirCampos(plan.escrituras.map(function (e) {
       return { hoja: e.hoja, direccion: e.celda, valores: [[e.valor]] };

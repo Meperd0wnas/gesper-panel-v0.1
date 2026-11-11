@@ -91,7 +91,12 @@ export const ANCLAS = {
  * vive lo que el panel necesita saber de GESPER para validarlas:
  *  - filaAnios: fila de la hoja destino con el índice relativo de año (0..10)
  *    de cada columna, que se compara con ANIO_IDX;
+ *  - filaAniosCalendario: fila con el año calendario; solo se muestra en la
+ *    vista previa, nunca se usa para validar ni se fija en el código;
+ *  - alcanceControles: qué invalida un CONTROL en REVISAR — "concepto" (spec
+ *    A01 §6) o "grupo" (spec A02 §6);
  *  - filasBandera: filas «¿contemplado?», que nunca se escriben desde un anexo;
+ *  - celdasProtegidas: otras celdas que el anexo nunca escribe (horizontes);
  *  - banderasHorizonte: para cada bloque de filas destino, su fila de bandera.
  *    Un año en "N/A" queda fuera del horizonte y GESPER descarta en silencio
  *    la cantidad: el panel lo avisa (spec §6 paso 7, §7).
@@ -105,6 +110,8 @@ export const ANEXOS = [
     programas: ["P1"],
     hojaDestino: H.EVT,
     filaAnios: 2,
+    filaAniosCalendario: 3,
+    alcanceControles: "concepto",
     filasBandera: [116, 130, 142, 154, 166, 182, 201, 215, 227, 239, 251, 267, 286, 300, 311, 322, 333, 349],
     banderasHorizonte: [
       { desde: 113, hasta: 115, fila: 116 }, // captación · instalación
@@ -113,6 +120,27 @@ export const ANEXOS = [
       { desde: 262, hasta: 266, fila: 267 }, // entrada PTAP · reemplazo
       { desde: 283, hasta: 285, fila: 286 }, // salida PTAP · instalación
       { desde: 344, hasta: 348, fila: 349 }  // salida PTAP · reemplazo
+    ]
+  },
+  {
+    // Especificacion_SALIDA_GESPER_A02_v1. SITIO es el subprograma (2.1.1,
+    // 2.2, ...): el panel lo usa solo como texto de agrupación.
+    id: "A02",
+    nombre: "Anexo 2 — Sectorización (P2)",
+    programas: ["P2"],
+    hojaDestino: H.EVT,
+    filaAnios: 2,
+    filaAniosCalendario: 3,
+    alcanceControles: "grupo",
+    filasBandera: [369, 387, 404, 415, 426, 437, 452, 467, 483],
+    celdasProtegidas: ["D447", "D478"], // tiempo estimado de reemplazo y de aislamiento (spec A02 §8)
+    banderasHorizonte: [
+      { desde: 363, hasta: 368, fila: 369 }, // 2.1.1 sectores
+      { desde: 380, hasta: 386, fila: 387 }, // 2.1.2 tanques
+      { desde: 398, hasta: 403, fila: 404 }, // 2.1.3 telemetría
+      { desde: 448, hasta: 451, fila: 452 }, // 2.1.7 reemplazo
+      { desde: 463, hasta: 466, fila: 467 }, // 2.2 válvulas
+      { desde: 477, hasta: 482, fila: 483 }  // 2.3 aislamiento
     ]
   }
 ];

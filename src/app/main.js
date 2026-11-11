@@ -124,7 +124,9 @@ async function cargarAnexo() {
   pintaAnexos();
   foot("Escribiendo en GESPER…");
   try {
-    A.resultado = await ejecutarCarga(A.evaluacion, anexo);
+    // La confirmación queda atada al plan que el usuario vio: si GESPER cambió
+    // desde la vista previa, ejecutarCarga no escribe y devuelve el plan nuevo.
+    A.resultado = await ejecutarCarga(A.evaluacion, anexo, A.confirmado ? A.plan : null);
     A.plan = A.resultado.plan;
     A.fase = "resumen";
     await refrescar();
@@ -132,6 +134,7 @@ async function cargarAnexo() {
   } catch (e) {
     A.fase = "vista";
     A.error = e && e.message ? e.message : String(e);
+    if (e && e.planActual) { A.plan = e.planActual; A.confirmado = false; }
     foot("No se cargó el anexo: " + A.error, "err");
   }
   pintaAnexos();

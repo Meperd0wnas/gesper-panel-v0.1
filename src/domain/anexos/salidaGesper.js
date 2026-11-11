@@ -136,12 +136,25 @@ export function interpretarSalida(libro) {
 
 /* ---------- 2. clasificación ---------- */
 
-/** A01.CAP.CTRL_INST invalida A01.CAP.INST.*; A01.CAP.CTRL_REEMP invalida A01.CAP.REEMP.* y A01.CAP.REEMP_TOT. */
-function controlCubre(idControl, idDato) {
+/**
+ * Qué datos invalida un CONTROL en REVISAR, según `anexo.alcanceControles`:
+ *  - "concepto" (A01, spec v1 §6): A01.CAP.CTRL_INST invalida A01.CAP.INST.*;
+ *    A01.CAP.CTRL_REEMP invalida A01.CAP.REEMP.* y A01.CAP.REEMP_TOT.
+ *  - "grupo" (A02, spec A02 §6): cualquier control de A02.VAL.* invalida
+ *    todos los datos A02.VAL.*.
+ */
+function controlCubre(idControl, idDato, alcance) {
   var c = idControl.split("."), d = idDato.split(".");
-  if (c.length < 3 || d.length < 3 || c[1] !== d[1] || c[2].indexOf("CTRL_") !== 0) return false;
+  if (c.length < 3 || d.length < 3 || c[1] !== d[1]) return false;
+  if (alcance === "grupo") return true;
+  if (c[2].indexOf("CTRL_") !== 0) return false;
   var concepto = c[2].slice(5);
   return d[2] === concepto || d[2].indexOf(concepto + "_") === 0;
+}
+
+/** "P3, P5 y P6" -> ["P3","P5","P6"]. */
+function listaProgramas(v) {
+  return normalizarTexto(v).toUpperCase().split(/[^A-Z0-9]+/).filter(function (p) { return /^P\d+$/.test(p); }).sort();
 }
 
 /**
@@ -153,6 +166,11 @@ export function evaluarAnexo(salida, anexo) {
   var anexoId = normalizarTexto(meta.ANEXO_ID);
   if (anexoId !== anexo.id) {
     throw new Error("El archivo corresponde al anexo " + anexoId + ", no al " + anexo.id + " (" + anexo.nombre + ").");
+  }
+  var esperados = anexo.programas.slice().sort();
+  if (listaProgramas(meta.PROGRAMAS).join(",") !== esperados.join(",")) {
+    throw new Error("El anexo declara los programas «" + normalizarTexto(meta.PROGRAMAS) + "»; para el " + anexo.id +
+      " se esperaba " + esperados.join(", ") + ".");
   }
 
   var ev = {
@@ -169,9 +187,14 @@ export function evaluarAnexo(salida, anexo) {
   });
 
   ev.datos.forEach(function (f) {
+    if (f.ID.indexOf(anexo.id + ".") !== 0) { ev.omitidos.push({ fila: f, motivo: "El ID no empieza por " + anexo.id + ".: no es un dato de este anexo." }); return; }
+    if (anexo.programas.indexOf(normalizarTexto(f.PROGRAMA).toUpperCase()) < 0) {
+      ev.omitidos.push({ fila: f, motivo: "El programa «" + normalizarTexto(f.PROGRAMA) + "» no es de este anexo (" + anexo.programas.join(", ") + ")." });
+      return;
+    }
     if (f.ESTADO === "REVISAR") { ev.omitidos.push({ fila: f, motivo: "El anexo marca este dato en REVISAR." }); return; }
     if (ESTADOS_CARGABLES.indexOf(f.ESTADO) < 0) { ev.omitidos.push({ fila: f, motivo: "Estado desconocido «" + f.ESTADO + "»." }); return; }
-    var ctrl = ev.controlesRevisar.filter(function (c) { return controlCubre(c.ID, f.ID); })[0];
+    var ctrl = ev.controlesRevisar.filter(function (c) { return controlCubre(c.ID, f.ID, anexo.alcanceControles); })[0];
     if (ctrl) { ev.omitidos.push({ fila: f, motivo: "El control " + ctrl.ID + " está en REVISAR e invalida este dato." }); return; }
     ev.candidatos.push(f);
   });
@@ -193,7 +216,10 @@ function banderaDe(anexo, fila) {
   return b ? b.fila : 0;
 }
 
-/** Celdas de la hoja destino que planificarCarga necesita: etiqueta (B), año (fila de años), destino y bandera de horizonte. */
+/**
+ * Celdas de la hoja destino que planificarCarga necesita: etiqueta (B), año
+ * (fila de años), año calendario (solo para mostrarlo), destino y bandera de horizonte.
+ */
 export function direccionesAInspeccionar(evaluacion, anexo) {
   var set = {};
   evaluacion.candidatos.forEach(function (f) {
@@ -203,6 +229,7 @@ export function direccionesAInspeccionar(evaluacion, anexo) {
     set[c.columna + c.fila] = 1;
     if (!vacio(f.ANIO_IDX)) {
       set[c.columna + anexo.filaAnios] = 1;
+      if (anexo.filaAniosCalendario) set[c.columna + anexo.filaAniosCalendario] = 1;
       var fb = banderaDe(anexo, c.fila);
       if (fb) set[c.columna + fb] = 1;
     }
@@ -219,6 +246,9 @@ function motivoDestino(f, c, insp, anexo, ocupadas) {
   if (!c) return "DESTINO_CELDA «" + normalizarTexto(f.DESTINO_CELDA) + "» no es una celda válida.";
   if (typeof f.VALOR !== "number" || !isFinite(f.VALOR)) return "VALOR no es un número (vacío, texto o error en el anexo).";
 
+  if ((anexo.celdasProtegidas || []).indexOf(c.columna + c.fila) >= 0) {
+    return "La celda " + c.columna + c.fila + " es una celda de horizonte que no se carga desde el anexo.";
+  }
   var etiqueta = (insp.celdas["B" + c.fila] || {}).texto;
   if ((anexo.filasBandera || []).indexOf(c.fila) >= 0 || normalizarTexto(etiqueta).toLowerCase().indexOf("contemplado") >= 0) {
     return "La fila " + c.fila + " es una bandera «¿contemplado?»: no se carga desde el anexo.";
@@ -246,17 +276,24 @@ function motivoDestino(f, c, insp, anexo, ocupadas) {
  * Cruza los candidatos con lo que hoy tiene GESPER (inspeccion =
  * resultado de excelService.leerCeldas sobre direccionesAInspeccionar).
  *
+ * La confirmación del usuario se exige si hay avisos, si el anexo está en
+ * OK CON ADVERTENCIAS o si algún valor nuevo difiere del que hoy tiene
+ * GESPER (p. ej. un 0 del anexo que reemplaza un 10): regla general, no una
+ * excepción por celda.
+ *
  * @returns {{
- *   escrituras: Array<{fila: Object, hoja: string, celda: string, valor: number, actual: any, cambia: boolean}>,
+ *   escrituras: Array<{fila: Object, hoja: string, celda: string, valor: number, actual: any, cambia: boolean,
+ *                      anio: number|null, anioCalendario: any}>,
  *   omitidos: Array<{fila: Object, motivo: string}>,
  *   avisos: Array<{fila: Object, tipo: string, texto: string}>,
+ *   cambios: number,
  *   requiereConfirmacion: boolean,
  *   bloqueo: string|null
  * }}
  */
 export function planificarCarga(evaluacion, inspeccion, anexo) {
   var plan = {
-    escrituras: [], omitidos: evaluacion.omitidos.slice(), avisos: [],
+    escrituras: [], omitidos: evaluacion.omitidos.slice(), avisos: [], cambios: 0,
     requiereConfirmacion: false, bloqueo: evaluacion.bloqueo
   };
   if (!inspeccion.hojaExiste) {
@@ -273,9 +310,12 @@ export function planificarCarga(evaluacion, inspeccion, anexo) {
     var celda = c.columna + c.fila;
     ocupadas[celda] = f.ID;
     var actual = (inspeccion.celdas[celda] || {}).valor;
+    var anual = !vacio(f.ANIO_IDX);
     plan.escrituras.push({
       fila: f, hoja: anexo.hojaDestino, celda: celda, valor: f.VALOR, actual: actual,
-      cambia: !(typeof actual === "number" && actual === f.VALOR)
+      cambia: !(typeof actual === "number" && actual === f.VALOR),
+      anio: anual ? Number(f.ANIO_IDX) : null,
+      anioCalendario: anual && anexo.filaAniosCalendario ? (inspeccion.celdas[c.columna + anexo.filaAniosCalendario] || {}).valor : null
     });
 
     if (f.ESTADO === "ADVERTENCIA") {
@@ -295,8 +335,19 @@ export function planificarCarga(evaluacion, inspeccion, anexo) {
     }
   });
 
-  plan.requiereConfirmacion = plan.avisos.length > 0 || evaluacion.estadoGlobal === "OK CON ADVERTENCIAS";
+  plan.cambios = plan.escrituras.filter(function (e) { return e.cambia; }).length;
+  plan.requiereConfirmacion = plan.avisos.length > 0 || plan.cambios > 0 || evaluacion.estadoGlobal === "OK CON ADVERTENCIAS";
   return plan;
+}
+
+/**
+ * Huella de lo que el usuario confirma: cada escritura (celda, valor actual,
+ * valor nuevo) y cada aviso. Si GESPER cambia entre la vista previa y la
+ * carga, la huella cambia y la confirmación deja de valer.
+ */
+export function firmaPlan(plan) {
+  return plan.escrituras.map(function (e) { return e.celda + ":" + JSON.stringify(e.actual) + ">" + e.valor; }).join("|") +
+    "#" + plan.avisos.map(function (a) { return a.tipo + ":" + a.fila.ID; }).join("|");
 }
 
 /** "SI – motivo" en DEPENDE_DECISION (spec §3, columna R). */
