@@ -41,3 +41,20 @@ table.cmp tr.chg td{background:var(--wn-w)}
 .chk{display:flex;gap:7px;align-items:flex-start;margin-top:var(--space-3);font-size:var(--text-sm);color:var(--ink2);cursor:pointer}
 .chk input{margin-top:2px}
 .btn-row .act.grow{flex:1}
+/* Selector de archivo: el <input type="file"> real, transparente, cubre el
+   boton que se ve; el clic del usuario cae en el input (ver render.js). El
+   hover/foco se pintan en el boton desde el contenedor. */
+.filepick{position:relative;display:inline-block}
+.filepick.block{display:block;width:100%}
+.filepick button.act{margin-top:0;pointer-events:none}
+.filepick input[type=file]{position:absolute;top:0;left:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer}
+.filepick:hover button.act{background:var(--gs-w);border-color:var(--gs)}
+.filepick:hover button.act.primary{background:var(--gs-dk);border-color:var(--gs-dk)}
+.filepick:hover button.act.ghost{background:var(--sunk);border-color:var(--border-strong)}
+.filepick:focus-within button.act{outline:2px solid var(--gs);outline-offset:1px}
+.dropzone{margin-top:8px;padding:14px 10px;border:1.5px dashed var(--border-strong);border-radius:var(--radius-md);
+  text-align:center;font-size:var(--text-xs);color:var(--mut);transition:background .12s ease,border-color .12s ease}
+.dropzone.main{margin-top:10px;padding:22px 12px;border-width:2px;background:var(--surface)}
+.dropzone.main b{display:block;font-size:var(--text-md);font-weight:var(--weight-semibold);color:var(--ink2);margin-bottom:2px}
+.dropzone.over{border-color:var(--gs);background:var(--gs-w);color:var(--gs)}
+.dropzone.over b{color:var(--gs)}

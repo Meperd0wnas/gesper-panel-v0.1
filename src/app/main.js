@@ -178,7 +178,6 @@ document.addEventListener("click", function (ev) {
 
   var ax = t.closest ? t.closest("[data-anexo]") : null;
   if (ax) { reiniciarAnexo(ax.getAttribute("data-anexo")); pintaAnexos(); return; }
-  if (t.id === "btnElegirAnexo") { $("anexoArchivo").click(); return; }
   if (t.id === "btnAnexoCancelar") { reiniciarAnexo(); pintaAnexos(); foot("Carga cancelada. No se escribió nada."); return; }
   if (t.id === "btnCargarAnexo") { cargarAnexo(); return; }
 
@@ -215,6 +214,25 @@ document.addEventListener("change", function (ev) {
     var b = $("btnCargarAnexo");
     if (b) b.disabled = !t.checked;
   }
+});
+
+/* Arrastrar el archivo del anexo al panel: segunda vía que no depende del
+   explorador de archivos. Se acepta solo cuando la pantalla muestra el
+   selector (#anexoArchivo). preventDefault en todo el documento evita que el
+   panel navegue al archivo soltado y se pierda. */
+function hayDestinoDrop() { return state.pantalla === "anexos" && !!$("anexoArchivo"); }
+function marcaDrop(on) { var z = $("anxDrop"); if (z) z.classList.toggle("over", on); }
+document.addEventListener("dragover", function (ev) {
+  ev.preventDefault();
+  if (ev.dataTransfer) ev.dataTransfer.dropEffect = hayDestinoDrop() ? "copy" : "none";
+  marcaDrop(hayDestinoDrop());
+});
+document.addEventListener("dragleave", function (ev) { if (!ev.relatedTarget) marcaDrop(false); });
+document.addEventListener("drop", function (ev) {
+  ev.preventDefault();
+  marcaDrop(false);
+  var f = ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files[0];
+  if (f && hayDestinoDrop()) leerAnexo(f);
 });
 
 /* ---------- ARRANQUE ---------- */

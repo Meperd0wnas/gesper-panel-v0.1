@@ -430,27 +430,41 @@ export function pintaAnexos() {
       '<span class="ic">' + (i + 1) + '</span><span><span class="nm">' + esc(a.nombre) + '</span>' +
       '<span class="sb">SALIDA_GESPER → ' + esc(a.hojaDestino) + '</span></span></button>';
   });
-  var input = '<input type="file" id="anexoArchivo" accept=".xlsx,.xlsm" hidden>';
-  var elegir = function (txt, cls) { return '<button class="act ' + cls + '" id="btnElegirAnexo">' + txt + '</button>'; };
+  // Dos vías para entregar el archivo. La principal es arrastrarlo a la zona
+  // punteada (main.js, eventos drag/drop): es la que funciona en Excel desde
+  // la actualización de WebView2 del 2026-11-08, que dejó de abrir el
+  // explorador de archivos dentro del panel. La secundaria es el selector: el
+  // <input type="file"> real va transparente encima del botón, por si en otro
+  // equipo o versión el explorador sí se abre.
+  var zona = function (titulo) {
+    return '<div class="dropzone main" id="anxDrop"><b>' + titulo + '</b><span>desde el Explorador de Windows (.xlsx o .xlsm)</span></div>';
+  };
+  var elegir = function (txt, cls) {
+    return '<span class="filepick' + (/\bblock\b/.test(cls) ? ' block' : '') + '">' +
+      '<button class="act ' + cls + '" type="button" tabindex="-1" aria-hidden="true">' + txt + '</button>' +
+      '<input type="file" id="anexoArchivo" accept=".xlsx,.xlsm" title="' + esc(txt) + '" aria-label="' + esc(txt) + '"></span>';
+  };
 
   if (A.fase === "inicio") {
     h += '<div class="card"><p>El panel lee la hoja <code>SALIDA_GESPER</code> del archivo del anexo, valida cada destino en GESPER y muestra una vista previa antes de escribir. Solo escribe en celdas de entrada sin fórmula.</p></div>';
-    h += '<div class="flag">Antes de elegirlo: abre el anexo en Excel, usa <b>Datos › Actualizar todo</b> y guárdalo. El panel lee los valores guardados en el archivo, no los recalcula.</div>';
-    h += '<div class="btn-row">' + elegir("Seleccionar archivo del anexo…", "primary lg block") + '</div>';
-    $("s-anexos").innerHTML = h + input;
+    h += '<div class="flag">Antes de cargarlo: abre el anexo en Excel, usa <b>Datos › Actualizar todo</b>, guárdalo y ciérralo. El panel lee los valores guardados en el archivo, no los recalcula.</div>';
+    h += zona("Arrastra aquí el archivo del anexo");
+    h += '<div class="btn-row">' + elegir("o búscalo con el explorador de archivos…", "ghost block") + '</div>';
+    $("s-anexos").innerHTML = h;
     return;
   }
 
   if (A.fase === "leyendo" || A.fase === "cargando") {
     h += '<div class="load"><div class="spin"></div>' + (A.fase === "leyendo" ? "Leyendo el anexo y validando destinos…" : "Escribiendo en GESPER…") + '</div>';
-    $("s-anexos").innerHTML = h + input;
+    $("s-anexos").innerHTML = h;
     return;
   }
 
   if (A.fase === "error") {
     h += sig("c", "No se pudo leer el anexo", (A.archivo ? "<b>" + esc(A.archivo.nombre) + "</b> · " : "") + esc(A.error));
-    h += '<div class="btn-row">' + elegir("Elegir otro archivo", "lg block") + '</div>';
-    $("s-anexos").innerHTML = h + input;
+    h += zona("Arrastra aquí otro archivo");
+    h += '<div class="btn-row">' + elegir("o búscalo con el explorador de archivos…", "ghost block") + '</div>';
+    $("s-anexos").innerHTML = h;
     return;
   }
 
@@ -480,9 +494,10 @@ export function pintaAnexos() {
       h += '<div class="flag">Cambiaron cantidades de ' + esc(meta.PROGRAMAS || "") + '. Si las alternativas ya se habían optimizado, vuelve a ejecutar el motor para que el consolidado refleje los nuevos B/C.</div>';
     }
     h += '<div class="btn-row">' +
-      '<button class="act lg" data-hoja="' + esc(anexo.hojaDestino) + '" data-addr="' + esc(plan.escrituras.length ? plan.escrituras[0].celda : "A1") + '">Ir a la hoja</button>' +
-      elegir("Cargar otro archivo", "ghost lg") + '</div>';
-    $("s-anexos").innerHTML = h + input;
+      '<button class="act lg block" data-hoja="' + esc(anexo.hojaDestino) + '" data-addr="' + esc(plan.escrituras.length ? plan.escrituras[0].celda : "A1") + '">Ir a la hoja ' + esc(anexo.hojaDestino) + '</button></div>';
+    h += '<div class="sec">Cargar otro anexo</div>' + zona("Arrastra aquí el siguiente archivo");
+    h += '<div class="btn-row">' + elegir("o búscalo con el explorador de archivos…", "ghost block") + '</div>';
+    $("s-anexos").innerHTML = h;
     return;
   }
 
@@ -548,7 +563,7 @@ export function pintaAnexos() {
     (plan.bloqueo ? "Carga bloqueada" : (plan.escrituras.length ? "Cargar " + plan.escrituras.length + " datos en GESPER" : "No hay datos para cargar")) + '</button>' +
     '<button class="act ghost lg" id="btnAnexoCancelar">Cancelar</button></div>';
   h += '<p class="note">Un solo lote de escritura, un recálculo. Nunca sobre celdas con fórmula.</p>';
-  $("s-anexos").innerHTML = h + input;
+  $("s-anexos").innerHTML = h;
 }
 
 /* ---------- PANTALLA: DIAGNÓSTICO ---------- */
