@@ -68,11 +68,22 @@ export const BLOQUES = [
 ];
 
 /**
- * Anclas verificadas de tramos de entrada por programa.
- * Donde no hay ancla verificada, el panel busca la fila por su rótulo.
+ * Anclas verificadas de tramos de entrada por programa: las 19, para que
+ * ningún programa dependa de buscar su rótulo. En EV PROG TÉCNICOS el número
+ * del programa está en la columna A y el nombre en la B (fila 492: "3 |
+ * GESTIÓN DEL PLANO DE PRESIONES"), así que buscar "3." en la B no lo
+ * encuentra. Filas de P.2–P.8, P.16 y P.19 verificadas en V8_030726 y en
+ * CASO_Bucaramanga_plantilla_v2.5 (iguales en ambos).
  */
 export const ANCLAS = {
   1: [H.EVT, "D108:D109", "Macromedición · captación"],
+  2: [H.EVT, "B358", "Sectorización"],
+  3: [H.EVT, "B492", "Gestión del plano de presiones"],
+  4: [H.EVT, "B634", "Impermeabilización de tanques"],
+  5: [H.EVT, "B652", "Atención de daños"],
+  6: [H.EVT, "B671", "Búsqueda sistemática de fugas"],
+  7: [H.EVT, "B790", "Reposición de redes y acometidas"],
+  8: [H.EVT, "B826", "Vinculación individual · parte técnica"],
   9: [H.EVC, "C181", "Renovación de medidores"],
   10: [H.EVC, "B275", "Gestión de fraudes"],
   11: [H.EVC, "B293", "Cobro de consumos por obras"],
@@ -80,8 +91,10 @@ export const ANCLAS = {
   13: [H.EVC, "B328", "Seguimiento de anomalías"],
   14: [H.EVC, "B346", "Medidores grandes consumidores"],
   15: [H.EVC, "B364", "Catastro de usuarios"],
+  16: [H.EVC, "B382", "Vinculación de comunidades ilegales"],
   17: [H.EVC, "B401", "Telemetría grandes consumidores"],
-  18: [H.EVC, "B417", "Software de inteligencia"]
+  18: [H.EVC, "B417", "Software de inteligencia"],
+  19: [H.EVC, "B430", "Vinculación individual · parte comercial"]
 };
 
 /**

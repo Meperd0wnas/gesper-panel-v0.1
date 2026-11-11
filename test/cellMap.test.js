@@ -42,6 +42,14 @@ test("cada anexo tiene id único, hoja destino conocida y bloques de horizonte q
   }
 });
 
+test("los 19 programas tienen ancla: técnicos (1-8) en EV PROG TÉCNICOS, comerciales (9-19) en EV PROG CCIALES", () => {
+  for (let n = 1; n <= 19; n++) {
+    assert.ok(ANCLAS[n], `el programa ${n} no tiene ancla: el panel caería a buscar su rótulo`);
+    assert.equal(ANCLAS[n][0], n <= 8 ? H.EVT : H.EVC, `hoja del ancla del programa ${n}`);
+    assert.match(ANCLAS[n][1], /^[A-Z]+\d+(:[A-Z]+\d+)?$/, `dirección del ancla del programa ${n}`);
+  }
+});
+
 test("cada ancla de programa tiene hoja, dirección y una etiqueta legible", () => {
   for (const [n, ancla] of Object.entries(ANCLAS)) {
     assert.equal(ancla.length, 3, `ancla del programa ${n} mal formada`);
