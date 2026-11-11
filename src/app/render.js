@@ -428,9 +428,13 @@ function listaReferencias(refs, tras) {
     var ok = coinciden(g, r.fila.VALOR);
     h += '<div class="anx-it"><b><code>' + esc(r.celda) + '</code></b> ' + esc(r.fila.CONCEPTO) +
       '<div>GESPER calcula ' + celdaTxt(g) + (r.formula ? ' (fórmula, no se escribe)' : '') + ' · el anexo ' + celdaTxt(r.fila.VALOR) +
-      ' · <span class="' + (ok ? 'text-ok' : 'text-warning') + '">' + (ok ? 'coinciden' : 'no coinciden') + '</span></div></div>';
+      ' · <span class="' + (ok ? 'text-ok' : 'text-warning') + '">' + (ok ? 'coinciden' : 'no coinciden') + '</span></div>' +
+      (r.fila.NOTA ? '<div class="text-muted">' + esc(r.fila.NOTA) + '</div>' : '') + '</div>';
   });
   return h;
+}
+function refsSinCoincidir(refs) {
+  return refs.filter(function (r) { return !coinciden(r.gesper, r.fila.VALOR); }).length;
 }
 function detalle(titulo, cuerpo) {
   return cuerpo ? '<details class="anx-det"><summary>' + titulo + '</summary>' + cuerpo + '</details>' : '';
@@ -470,6 +474,11 @@ function motivosGrupo(g) {
 function tarjetaGrupo(g, marcado) {
   var pide = g.requiereConfirmacion;
   var cambian = g.escrituras.filter(function (e) { return e.cambia; });
+  // Una referencia que no coincide no pide confirmación (no se escribe ni la
+  // cambia este grupo: en el A04, D730 depende del total de tanques de GEN),
+  // pero se dice en la tarjeta para que no pase inadvertida.
+  var nRef = refsSinCoincidir(g.referencias);
+  var notaRef = nRef ? ' ' + (nRef === 1 ? '1 referencia no coincide' : nRef + ' referencias no coinciden') + ' con lo que calcula GESPER (ver detalle).' : '';
   var info = plural(g.escrituras.length, "dato", "datos") + (g.programa ? " · " + esc(g.programa) : "") + " · " + esc(g.id) +
     (g.ajustes ? " · " + plural(g.ajustes, "ajuste de decimales", "ajustes de decimales") : "");
   var cuerpo = '';
@@ -478,12 +487,12 @@ function tarjetaGrupo(g, marcado) {
   if (g.controles.length) cuerpo += listaControles(g.controles);
   if (g.omitidos.length) cuerpo += listaOmitidos(g.omitidos);
   if (g.referencias.length) cuerpo += '<p class="note">Referencias (no se escriben):</p>' + listaReferencias(g.referencias);
-  if (g.escrituras.length) cuerpo += detalle("Ver los " + plural(g.escrituras.length, "dato", "datos") + " a cargar", tablaEscrituras(g.escrituras));
+  if (g.escrituras.length) cuerpo += detalle(g.escrituras.length === 1 ? "Ver el dato a cargar" : "Ver los " + g.escrituras.length + " datos a cargar", tablaEscrituras(g.escrituras));
   return '<div class="anx-grp' + (pide ? ' pide' : '') + (marcado ? ' on' : '') + '">' +
     '<label class="chk"><input type="checkbox" data-grupo="' + esc(g.id) + '"' + (marcado ? ' checked' : '') + '>' +
     '<span><b>' + esc(g.sitio || g.id) + '</b><span class="mt">' + info + '</span></span></label>' +
     '<div class="why' + (pide ? ' text-warning' : '') + '">' + (pide ? 'Revísalo antes de marcarlo: ' + motivosGrupo(g).join(" · ") + '.'
-      : (g.ajustes ? 'Sin cambios ni advertencias (solo decimales).' : 'Sin cambios ni advertencias.')) + '</div>' +
+      : (g.ajustes ? 'Sin cambios ni advertencias (solo decimales).' : 'Sin cambios ni advertencias.')) + notaRef + '</div>' +
     detalle(pide ? "Ver qué revisar" : "Ver detalle", cuerpo) + '</div>';
 }
 
@@ -603,13 +612,16 @@ export function pintaAnexos() {
     if (cambiaron.length) {
       h += detalle(cambiaron.length === 1 ? 'Ver el valor que cambió' : 'Ver los ' + cambiaron.length + ' valores que cambiaron', listaCambios(cambiaron));
     }
-    if (plan.omitidos.length) h += detalle('Ver los ' + plan.omitidos.length + ' datos omitidos y por qué', listaOmitidos(plan.omitidos));
+    if (plan.omitidos.length) h += detalle(plan.omitidos.length === 1 ? 'Ver el dato omitido y por qué' : 'Ver los ' + plan.omitidos.length + ' datos omitidos y por qué', listaOmitidos(plan.omitidos));
     var refs = r.referencias || [];
     if (refs.length) h += detalle("Ver " + plural(refs.length, "referencia", "referencias") + " de GESPER después de la carga", listaReferencias(refs, true));
     h += listaPendientes(ev);
     if (r.cambiados) {
       var progs = [];
-      cambiaron.forEach(function (e) { var p = String(e.fila.PROGRAMA || ""); if (p && progs.indexOf(p) < 0) progs.push(p); });
+      cambiaron.forEach(function (e) {
+        String(e.fila.PROGRAMA || "").split(/[\s,;]+/).forEach(function (p) { if (p && progs.indexOf(p) < 0) progs.push(p); });
+      });
+      progs.sort(function (a, b) { return parseInt(a.slice(1), 10) - parseInt(b.slice(1), 10); });
       h += '<div class="flag">Cambiaron cantidades de ' + esc(progs.join(", ") || meta.PROGRAMAS || "") + '. Si las alternativas ya se habían optimizado, vuelve a ejecutar el motor para que el consolidado refleje los nuevos B/C.</div>';
     }
     h += '<div class="btn-row">' +

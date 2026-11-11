@@ -188,5 +188,28 @@ export const ANEXOS = [
       { desde: 701, hasta: 712, fila: 705 }, // 6.2.2 redes matrices
       { desde: 714, hasta: 725, fila: 718 }  // 6.2.3 acometidas
     ]
+  },
+  {
+    // Especificacion_SALIDA_GESPER_A04 v1.1 (mismo contrato que el A03): cuatro
+    // grupos — IMP (4.1), REB (6.3.1), SEN (6.3.5) y GEN, el total de tanques
+    // D638, que alimenta TQTOTAL y con él D729/D730 y la fila 640. Como en el
+    // A03, la bandera queda en medio del bloque y el volumen recuperado debajo.
+    id: "A04",
+    nombre: "Anexo 4 — Impermeabilización y reboses de tanques (P4, P6)",
+    programas: ["P4", "P6"],
+    hojaDestino: H.EVT,
+    filaAnios: 2,
+    filaAniosCalendario: 3,
+    alcanceControles: "concepto",
+    cargaPorGrupo: true,
+    filasBandera: [643, 734, 746, 757, 768, 781],
+    // Frecuencia de impermeabilización y horizontes que el anexo no entrega
+    // (spec A04 §8, A04.GEN.FRECUENCIA y A04.GEN.HORIZONTE).
+    celdasProtegidas: ["D637", "D732", "D778"],
+    banderasHorizonte: [
+      { desde: 635, hasta: 650, fila: 643 }, // 4.1 impermeabilización
+      { desde: 728, hasta: 741, fila: 734 }, // 6.3.1 control de nivel
+      { desde: 777, hasta: 788, fila: 781 }  // 6.3.5 reemplazo de sensor
+    ]
   }
 ];

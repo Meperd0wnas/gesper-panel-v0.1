@@ -229,7 +229,9 @@ export function evaluarAnexo(salida, anexo) {
 
   ev.datos.forEach(function (f) {
     if (f.ID.indexOf(anexo.id + ".") !== 0) { ev.omitidos.push({ fila: f, motivo: "El ID no empieza por " + anexo.id + ".: no es un dato de este anexo." }); return; }
-    if (anexo.programas.indexOf(normalizarTexto(f.PROGRAMA).toUpperCase()) < 0) {
+    // Una fila puede ser de varios programas del anexo ("P4, P6" en A04.GEN.TANQUES_TOT).
+    var progs = listaProgramas(f.PROGRAMA);
+    if (!progs.length || progs.some(function (p) { return anexo.programas.indexOf(p) < 0; })) {
       ev.omitidos.push({ fila: f, motivo: "El programa «" + normalizarTexto(f.PROGRAMA) + "» no es de este anexo (" + anexo.programas.join(", ") + ")." });
       return;
     }
@@ -309,7 +311,7 @@ function motivoDestino(f, c, insp, anexo, ocupadas) {
   if (typeof f.VALOR !== "number" || !isFinite(f.VALOR)) return "VALOR no es un número (vacío, texto o error en el anexo).";
 
   if ((anexo.celdasProtegidas || []).indexOf(c.columna + c.fila) >= 0) {
-    return "La celda " + c.columna + c.fila + " es una celda de horizonte que no se carga desde el anexo.";
+    return "La celda " + c.columna + c.fila + " es una celda de horizonte o frecuencia que no se carga desde el anexo.";
   }
   var etiqueta = (insp.celdas["B" + c.fila] || {}).texto;
   if ((anexo.filasBandera || []).indexOf(c.fila) >= 0 || normalizarTexto(etiqueta).toLowerCase().indexOf("contemplado") >= 0) {

@@ -733,3 +733,148 @@ test("A03: nunca escribe banderas ni celdas de horizonte, y avisa un año N/A au
   // L509 (volumen de mantenimiento de ERP's) va debajo de su bandera, la fila 503.
   assert.deepEqual(plan.avisos.filter((a) => a.tipo === "HORIZONTE").map((a) => a.fila.ID), ["A03.ERP.VOL_MANT.Y01"]);
 });
+
+/* ---------- Anexo 4: P4 y P6.3, contrato 1.1, carga por grupo (valores inventados) ---------- */
+
+const A04 = anexoPorId("A04");
+const SITIO_A04 = {
+  IMP: "4.1 Pruebas de estanqueidad e impermeabilización de tanques", REB: "6.3.1 Instrumentación y control de nivel en tanques",
+  SEN: "6.3.5 Reemplazo de sensor de nivel", GEN: "General"
+};
+const PROG_A04 = { IMP: "P4", REB: "P6", SEN: "P6", GEN: "P4, P6" };
+const ETQ_IMP = "Lavado e impermeabilizado de tanques de almacenamiento de agua potable"; // filas 641 y 642
+const ETQ_IMP_VOL = "Volumen de agua recuperado Pruebas de estanqueidad e impermeabilización de tanques";
+
+function filasA04() {
+  const g = (id) => id.split(".")[1];
+  const etiqueta = (celda) => ({ 641: ETQ_IMP, 648: ETQ_IMP_VOL })[celda.replace(/^[A-Z]+/, "")] || "Rótulo de la fila " + celda.replace(/^[A-Z]+/, "");
+  const dato = (id, celda, valor, o = {}) => fila(Object.assign({
+    ID: id, TIPO_FILA: "DATO", PROGRAMA: PROG_A04[g(id)], SITIO: SITIO_A04[g(id)], CONCEPTO: "Concepto " + id,
+    ANIO_IDX: /\.Y(\d\d)$/.test(id) ? Number(id.slice(-2)) : null, VALOR: valor, ESTADO: "OK", DESTINO_CELDA: celda, DESTINO_ETIQUETA: etiqueta(celda)
+  }, o));
+  const control = (id, o = {}) => fila(Object.assign({
+    ID: id, TIPO_FILA: "CONTROL", PROGRAMA: PROG_A04[g(id)], SITIO: SITIO_A04[g(id)], VALOR: 1, VALOR_CONTROL: 1, ESTADO: "OK", DESTINO_HOJA: null
+  }, o));
+  return [
+    dato("A04.IMP.AREA_TOT", "D639", 300.5, { ESTADO: "ADVERTENCIA", VALOR_CONTROL: 300.5, NOTA: "Incluye tanques marcados NA (H-02)." }),
+    dato("A04.IMP.AREA.Y02", "M641", 120.25),
+    dato("A04.IMP.VOL.Y02", "M648", 410.5),
+    dato("A04.IMP.VOL.Y07", "R648", 0),
+    control("A04.IMP.CTRL_VOL"),
+    control("A04.IMP.COBERT_PRIOR", { ESTADO: "ADVERTENCIA", VALOR: 300.5, VALOR_CONTROL: 520 }),
+    dato("A04.REB.PTOS_FALT", "D731", 6),
+    dato("A04.REB.INSTAL.Y02", "M733", 2),
+    dato("A04.REB.VOL.Y02", "M739", 150),
+    control("A04.REB.CTRL_INSTAL"),
+    control("A04.REB.TANQ_CON_CONTROL", { VALOR: 12, VALOR_CONTROL: 12, DESTINO_HOJA: EVT, DESTINO_CELDA: "D730",
+      DESTINO_ETIQUETA: "No. de tanques con control de nivel", NOTA: "Fila de referencia: en GESPER es una fórmula (H-03)." }),
+    dato("A04.SEN.EQ_EDAD", "D779", 7),
+    dato("A04.SEN.REEMPL.Y02", "M780", 3),
+    control("A04.SEN.CTRL_REEMPL"),
+    dato("A04.GEN.TANQUES_TOT", "D638", 18, { DEPENDE_DECISION: "SI – qué registros cuentan como tanques" }),
+    fila({ ID: "A04.GEN.CONTEMPLADO", TIPO_FILA: "NO_DISPONIBLE", PROGRAMA: "P4, P6", SITIO: "General", VALOR: null, ESTADO: "N/A", DESTINO_HOJA: null }),
+    fila({ ID: "A04.GEN.HORIZONTE", TIPO_FILA: "NO_DISPONIBLE", PROGRAMA: "P4, P6", SITIO: "General", VALOR: null, ESTADO: "N/A", DESTINO_HOJA: null })
+  ];
+}
+
+/** EV PROG TÉCNICOS para el A04: destinos = anexo salvo el volumen del año 7 (H-01) y el total de tanques (H-03). */
+function gesperA04(cambios = {}) {
+  const c = {};
+  for (let y = 0; y <= 10; y++) { c[COL_ANIO[y] + "2"] = y; c[COL_ANIO[y] + "3"] = 2025 + y; }
+  A04.filasBandera.forEach((r) => { c["B" + r] = ETQ_CONTEMPLADO; for (let y = 0; y <= 10; y++) c[COL_ANIO[y] + r] = "NO"; });
+  filasA04().forEach((f) => {
+    if (f.TIPO_FILA === "DATO") { c["B" + f.DESTINO_CELDA.replace(/^[A-Z]+/, "")] = f.DESTINO_ETIQUETA; c[f.DESTINO_CELDA] = f.VALOR; }
+  });
+  c.B642 = ETQ_IMP;                                                   // mismo rótulo que la 641 (spec A04 §3)
+  c.M642 = "=IFERROR(HLOOKUP(M636-$D$637,$L$636:$U$642,6,FALSE),0)";  // repite la impermeabilización cada D637 años
+  c.B648 = { f: '=CONCATENATE("Volumen de agua recuperado ",B635)', v: ETQ_IMP_VOL };
+  c.D730 = { f: "=D729-D731", v: 13 };                                // D729 = TQTOTAL = D638
+  c.R648 = 500;                                                       // GESPER tiene volumen en un año sin dato del anexo
+  c.D638 = 19;                                                        // GESPER cuenta un tanque más
+  c.B637 = "Frecuencia para impermeabilización de tanques"; c.D637 = 10;
+  c.B732 = "Tiempo estimado para inversión total"; c.D732 = 5;
+  c.B778 = "Tiempo estimado para Reemplazo"; c.D778 = 4;
+  return Object.assign(c, cambios);
+}
+
+function libroA04({ meta = {}, filas = filasA04() } = {}) {
+  return libroAnexo({
+    filas,
+    meta: Object.assign({
+      SPEC_VERSION: "1.1", ANEXO_ID: "A04", PROGRAMAS: "P4, P6", ESTADO_GLOBAL: "OK CON ADVERTENCIAS",
+      N_DATO: 10, N_DATO_OK: 9, N_ADVERTENCIA: 2, N_REVISAR: 0, GRUPOS_REVISAR: ""
+    }, meta)
+  });
+}
+function evaluarA04(opts) { return evaluarAnexo(interpretarSalida(libroA04(opts)), A04); }
+function planA04(ev, cambios) { return planificarCarga(ev, inspeccion(gesperA04(cambios)), A04); }
+
+test("A04: reconoce el anexo y los programas P4 y P6, y carga el total de tanques aunque su programa sea «P4, P6»", () => {
+  const ev = evaluarA04();
+  assert.equal(ev.datos.length, 10);
+  assert.equal(ev.candidatos.length, 10);
+  assert.equal(ev.controles.length, 5);
+  assert.equal(ev.noDisponibles.length, 2);
+  assert.deepEqual([ev.bloqueo, ev.cargaParcial], [null, false]);
+  assert.ok(ev.candidatos.some((f) => f.ID === "A04.GEN.TANQUES_TOT"));
+  assert.throws(() => evaluarAnexo(interpretarSalida(libroA04()), A03), /anexo A04, no al A03/);
+  assert.throws(() => evaluarA04({ meta: { PROGRAMAS: "P4" } }), /para el A04 se esperaba P4, P6/);
+  // Un programa ajeno al anexo se omite aunque venga junto a uno propio.
+  const filas = filasA04().map((f) => (f.ID === "A04.GEN.TANQUES_TOT" ? Object.assign({}, f, { PROGRAMA: "P4, P5" }) : f));
+  assert.match(evaluarA04({ filas }).omitidos.filter((o) => o.fila.ID === "A04.GEN.TANQUES_TOT")[0].motivo, /«P4, P5» no es de este anexo/);
+});
+
+test("A04: detecta el 0 que reemplaza un volumen de GESPER y el total de tanques, y deja marcados solo REB y SEN", () => {
+  const plan = planA04(evaluarA04());
+  assert.equal(plan.escrituras.length, 10);
+  assert.deepEqual(plan.escrituras.filter((e) => e.cambia).map((e) => [e.celda, e.actual, e.valor]), [["R648", 500, 0], ["D638", 19, 18]]);
+  assert.deepEqual(plan.avisos.map((a) => [a.tipo, a.fila.ID]), [["ADVERTENCIA", "A04.IMP.AREA_TOT"]]);
+  assert.equal(plan.requiereConfirmacion, true);
+  const g = Object.fromEntries(plan.grupos.map((x) => [x.id, x]));
+  assert.deepEqual(plan.grupos.map((x) => x.id), ["IMP", "REB", "SEN", "GEN"]);
+  assert.deepEqual([g.IMP.cambios, g.IMP.avisos.length, g.IMP.controles.length], [1, 1, 1], "R648, AREA_TOT y COBERT_PRIOR");
+  assert.equal(g.GEN.programa, "P4, P6");
+  assert.deepEqual(seleccionInicial(plan), { IMP: false, REB: true, SEN: true, GEN: false });
+});
+
+test("A04: la referencia D730 se lee y nunca se escribe; que no coincida no obliga a confirmar su grupo", async () => {
+  const ev = evaluarA04();
+  assert.ok(direccionesAInspeccionar(ev, A04).includes("D730"));
+  const plan = planA04(ev);
+  assert.deepEqual(plan.referencias.map((r) => [r.fila.ID, r.celda, r.gesper, r.formula, r.coincide]),
+    [["A04.REB.TANQ_CON_CONTROL", "D730", 13, true, false]]);
+  const reb = plan.grupos.filter((x) => x.id === "REB")[0];
+  assert.deepEqual([reb.referencias.length, reb.requiereConfirmacion], [1, false], "REB no cambia nada en GESPER");
+
+  const { stats, rangos } = instalarGesper(gesperA04());
+  const vista = await prepararCarga(ev, A04);
+  const r = await ejecutarCarga(ev, A04, vista, ["REB", "GEN"]);
+  assert.deepEqual(rangos.D730.formulas, [["=D729-D731"]]);
+  assert.deepEqual(rangos.D638.values, [[18]]);
+  assert.deepEqual(rangos.R648.values, [[500]], "IMP no se marcó: GESPER conserva su volumen");
+  assert.deepEqual(r.grupos, ["REB", "GEN"]);
+  assert.equal(r.referencias[0].despues, 13, "se relee después del recálculo");
+  assert.equal(stats.calculateCalls, 1);
+});
+
+test("A04: las filas 641 y 642 tienen el mismo rótulo; la 642 es una fórmula y nunca se escribe", () => {
+  const filas = filasA04().concat([
+    fila({ ID: "A04.IMP.REPITE.Y02", TIPO_FILA: "DATO", PROGRAMA: "P4", ANIO_IDX: 2, VALOR: 1, ESTADO: "OK", DESTINO_CELDA: "M642", DESTINO_ETIQUETA: ETQ_IMP })
+  ]);
+  const plan = planA04(evaluarA04({ filas }));
+  assert.match(motivoDe(plan, "A04.IMP.REPITE.Y02"), /M642 tiene una fórmula/);
+  assert.ok(celdasDe(plan).includes("M641"));
+  assert.ok(celdasDe(plan).includes("M648"), "el rótulo de la fila 648 es una fórmula y se compara por su valor");
+});
+
+test("A04: nunca escribe la frecuencia ni los horizontes (D637, D732, D778), y avisa un año N/A del reemplazo de sensor", () => {
+  const extra = [["A04.IMP.FREC", "D637"], ["A04.REB.HORIZ", "D732"], ["A04.SEN.HORIZ", "D778"]].map(([id, celda]) =>
+    fila({ ID: id, TIPO_FILA: "DATO", PROGRAMA: PROG_A04[id.split(".")[1]], VALOR: 3, ESTADO: "OK", DESTINO_CELDA: celda,
+      DESTINO_ETIQUETA: gesperA04()["B" + celda.slice(1)] }));
+  const plan = planA04(evaluarA04({ filas: filasA04().concat(extra) }), { M781: "N/A", R643: "N/A" });
+  for (const [id, celda] of [["A04.IMP.FREC", "D637"], ["A04.REB.HORIZ", "D732"], ["A04.SEN.HORIZ", "D778"]]) {
+    assert.match(motivoDe(plan, id), new RegExp(celda + " es una celda de horizonte o frecuencia"));
+  }
+  // M780 va encima de su bandera (fila 781); el 0 de R648 en un año N/A no avisa.
+  assert.deepEqual(plan.avisos.filter((a) => a.tipo === "HORIZONTE").map((a) => a.fila.ID), ["A04.SEN.REEMPL.Y02"]);
+});
