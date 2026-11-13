@@ -211,5 +211,27 @@ export const ANEXOS = [
       { desde: 728, hasta: 741, fila: 734 }, // 6.3.1 control de nivel
       { desde: 777, hasta: 788, fila: 781 }  // 6.3.5 reemplazo de sensor
     ]
+  },
+  {
+    // Especificacion_SALIDA_GESPER_A07 v1.1 (mismo contrato que el A03): grupos
+    // RED (filas 795, 798-800 y 807-809) y ACO (816 y 822). GEN solo trae la
+    // referencia D792 y filas NO_DISPONIBLE, así que no tiene casilla.
+    id: "A07",
+    nombre: "Anexo 7 — Reposición de redes y acometidas (P7)",
+    programas: ["P7"],
+    hojaDestino: H.EVT,
+    filaAnios: 2,
+    filaAniosCalendario: 3,
+    alcanceControles: "concepto",
+    cargaPorGrupo: true,
+    filasBandera: [802, 817],
+    // Horizontes que el anexo no entrega (spec A07 §8, A07.GEN.HORIZONTE). D796
+    // y D815 son fórmulas (COUNT) y L:U de esas filas también; K796 y K815 son
+    // el año 0 escrito como valor.
+    celdasProtegidas: ["D796", "K796", "D815", "K815"],
+    banderasHorizonte: [
+      { desde: 792, hasta: 811, fila: 802 }, // reposición de redes: costos 803-806 y beneficio 810
+      { desde: 813, hasta: 824, fila: 817 }  // reposición de acometidas: costos 818-821 y beneficio 823
+    ]
   }
 ];

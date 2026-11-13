@@ -11,7 +11,7 @@ El libro tiene ~47 hojas, la mayoría ocultas, con un flujo de diligenciamiento 
 - mostrar el estado del modelo sin recorrer las 47 hojas a mano (WACC diligenciado, alternativa vigente, programas sin datos, IPC desactualizado);
 - navegar directamente al bloque correcto en vez de buscar entre hojas ocultas;
 - diligenciar programas puntuales con validación antes de escribir en el libro;
-- cargar los resultados de un anexo técnico (hoy el Anexo 1, P1; el Anexo 2, P2; el Anexo 3, P3, P5 y P6; y el Anexo 4, P4 y P6.3; los dos últimos por grupos) desde su hoja `SALIDA_GESPER`, con vista previa, validación de cada destino y confirmación de los valores que cambian antes de escribir (ver `docs/DECISIONES.md` §11);
+- cargar los resultados de un anexo técnico (hoy el Anexo 1, P1; el Anexo 2, P2; el Anexo 3, P3, P5 y P6; el Anexo 4, P4 y P6.3; y el Anexo 7, P7; los tres últimos por grupos) desde su hoja `SALIDA_GESPER`, con vista previa, validación de cada destino y confirmación de los valores que cambian antes de escribir (ver `docs/DECISIONES.md` §11);
 - presentar resultados (indicadores hídricos, comparación de alternativas, flujo de caja) con la celda de origen siempre visible.
 
 Quiénes lo usan: personal interno de la empresa prestadora que opera el modelo (no un framework de uso público) — del orden de 5 usuarios.

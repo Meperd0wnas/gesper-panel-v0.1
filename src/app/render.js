@@ -543,8 +543,10 @@ export function pintaAnexos() {
   var anexo = ANEXOS.filter(function (a) { return a.id === A.anexoId; })[0];
   var h = '<div class="sec">Cargar anexos</div>';
   ANEXOS.forEach(function (a, i) {
+    // El número es el del anexo (A07 -> 7), no su posición en la lista: no hay anexos 5 y 6.
+    var num = parseInt(String(a.id).replace(/\D/g, ""), 10) || i + 1;
     h += '<button class="navb' + (a.id === A.anexoId ? ' on' : '') + '" data-anexo="' + esc(a.id) + '">' +
-      '<span class="ic">' + (i + 1) + '</span><span><span class="nm">' + esc(a.nombre) + '</span>' +
+      '<span class="ic">' + num + '</span><span><span class="nm">' + esc(a.nombre) + '</span>' +
       '<span class="sb">SALIDA_GESPER → ' + esc(a.hojaDestino) + '</span></span></button>';
   });
   // Dos vías para entregar el archivo. La principal es arrastrarlo a la zona
@@ -660,9 +662,19 @@ export function pintaAnexos() {
     var nPide = grupos.filter(function (g) { return g.requiereConfirmacion; }).length;
     h += '<div class="sec">Elige qué cargar · ' + plural(grupos.length, "grupo", "grupos") + '</div>';
     h += '<p class="note">Cada grupo se carga por separado. ' +
-      (nPide ? 'Los ' + nPide + ' que traen cambios, advertencias o datos en REVISAR vienen sin marcar: abre su detalle y márcalos solo si quieres cargarlos así.'
+      (nPide === 1 ? 'El que trae cambios, advertencias o datos en REVISAR viene sin marcar: abre su detalle y márcalo solo si quieres cargarlo así.'
+        : nPide ? 'Los ' + nPide + ' que traen cambios, advertencias o datos en REVISAR vienen sin marcar: abre su detalle y márcalos solo si quieres cargarlos así.'
         : 'Ninguno trae cambios ni advertencias.') + '</p>';
     grupos.forEach(function (g) { h += tarjetaGrupo(g, !!A.grupos[g.id]); });
+    // Referencias de un grupo sin datos que cargar (A07.GEN.LONG_RED_SIST → D792):
+    // no tienen tarjeta, pero se muestran igual.
+    var sueltas = plan.referencias.filter(function (r) { return !grupos.some(function (g) { return g.id === r.grupo; }); });
+    if (sueltas.length) {
+      var nSin = refsSinCoincidir(sueltas);
+      h += detalle("Ver " + plural(sueltas.length, "referencia", "referencias") + " de GESPER fuera de los grupos (no se " +
+        (sueltas.length === 1 ? "escribe" : "escriben") + ")" + (nSin ? " · " + nSin + (nSin === 1 ? " no coincide" : " no coinciden") : ""),
+        listaReferencias(sueltas));
+    }
     if (ajustes.length) {
       h += '<p class="note">' + plural(ajustes.length, "valor solo ajusta decimales", "valores solo ajustan decimales") +
         ' (GESPER guardaba menos; diferencia menor a 0,005): se escriben sin pedir confirmación y se marcan con ≈.</p>';

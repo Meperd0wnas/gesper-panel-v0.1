@@ -878,3 +878,129 @@ test("A04: nunca escribe la frecuencia ni los horizontes (D637, D732, D778), y a
   // M780 va encima de su bandera (fila 781); el 0 de R648 en un año N/A no avisa.
   assert.deepEqual(plan.avisos.filter((a) => a.tipo === "HORIZONTE").map((a) => a.fila.ID), ["A04.SEN.REEMPL.Y02"]);
 });
+
+/* ---------- Anexo 7: P7, contrato 1.1, carga por grupo (valores inventados) ---------- */
+
+const A07 = anexoPorId("A07");
+const SITIO_A07 = { RED: "Reposición de redes", ACO: "Reposición de acometidas", GEN: "General" };
+const ETQ_RED_VOL6 = 'Volumen recuperado por redes <6" '; // GESPER rotula 807 a 809 con un espacio al final (spec A07 §3)
+const ETQ_HORIZ_A07 = "Tiempo estimado para inversión total - Años de priorización";
+
+function filasA07() {
+  const g = (id) => id.split(".")[1];
+  const etiqueta = (celda) => ({ 807: ETQ_RED_VOL6 })[celda.replace(/^[A-Z]+/, "")] || "Rótulo de la fila " + celda.replace(/^[A-Z]+/, "");
+  const dato = (id, celda, valor, o = {}) => fila(Object.assign({
+    ID: id, TIPO_FILA: "DATO", PROGRAMA: "P7", SITIO: SITIO_A07[g(id)], CONCEPTO: "Concepto " + id,
+    ANIO_IDX: /\.Y(\d\d)$/.test(id) ? Number(id.slice(-2)) : null, VALOR: valor, ESTADO: "OK", DESTINO_CELDA: celda, DESTINO_ETIQUETA: etiqueta(celda),
+    DEPENDE_DECISION: "SI – año de priorización escrito a mano"
+  }, o));
+  const control = (id, o = {}) => fila(Object.assign({
+    ID: id, TIPO_FILA: "CONTROL", PROGRAMA: "P7", SITIO: SITIO_A07[g(id)], VALOR: 1, VALOR_CONTROL: 1, ESTADO: "OK", DESTINO_HOJA: null
+  }, o));
+  return [
+    dato("A07.RED.D6.Y02", "M798", 120.5),
+    dato("A07.RED.D6.Y03", "N798", 80),
+    dato("A07.RED.D14.Y03", "N800", 45.25),
+    dato("A07.RED.V6.Y02", "M807", 9000),
+    dato("A07.RED.V6.Y03", "N807", 4000),
+    dato("A07.RED.V14.Y03", "N809", 700),
+    control("A07.RED.LONG_TOT", { VALOR: 205.75, VALOR_CONTROL: 205.75, DESTINO_HOJA: EVT, DESTINO_CELDA: "D794",
+      DESTINO_ETIQUETA: "Longitud total de redes a reponer", NOTA: "Fila de referencia: en GESPER es una fórmula redondeada (H-06)." }),
+    control("A07.RED.CTRL_D6"),
+    control("A07.RED.CTRL_V6"),
+    control("A07.RED.CTRL_BLOQUE_LONG"),
+    control("A07.RED.COBERT_LONG"),
+    dato("A07.ACO.CANT_TOT", "D795", 9),
+    dato("A07.ACO.CANT.Y02", "M816", 4),
+    dato("A07.ACO.VOL.Y02", "M822", 1500),
+    control("A07.ACO.CTRL_CANT"),
+    control("A07.GEN.LONG_RED_SIST", { VALOR: 5000, VALOR_CONTROL: 5000, DESTINO_HOJA: EVT, DESTINO_CELDA: "D792",
+      DESTINO_ETIQUETA: "Longitud total de redes en el sistema" }),
+    fila({ ID: "A07.GEN.CONTEMPLADO", TIPO_FILA: "NO_DISPONIBLE", PROGRAMA: "P7", SITIO: "General", VALOR: null, ESTADO: "N/A", DESTINO_HOJA: null }),
+    fila({ ID: "A07.GEN.HORIZONTE", TIPO_FILA: "NO_DISPONIBLE", PROGRAMA: "P7", SITIO: "General", VALOR: null, ESTADO: "N/A", DESTINO_HOJA: null })
+  ];
+}
+
+/** EV PROG TÉCNICOS para el A07: destinos = anexo salvo N800, que GESPER guarda en km dentro de una fila en m (H-01). */
+function gesperA07(cambios = {}) {
+  const c = {};
+  for (let y = 0; y <= 10; y++) { c[COL_ANIO[y] + "2"] = y; c[COL_ANIO[y] + "3"] = 2025 + y; }
+  A07.filasBandera.forEach((r) => { c["B" + r] = ETQ_CONTEMPLADO; for (let y = 0; y <= 10; y++) c[COL_ANIO[y] + r] = y <= 6 ? "NO" : "N/A"; });
+  filasA07().forEach((f) => {
+    if (f.TIPO_FILA === "DATO") { c["B" + f.DESTINO_CELDA.replace(/^[A-Z]+/, "")] = f.DESTINO_ETIQUETA; c[f.DESTINO_CELDA] = f.VALOR; }
+  });
+  c.N800 = 0.04525;
+  c.B794 = "Longitud total de redes a reponer"; c.D794 = { f: "=0.2*1000", v: 200 };
+  c.B792 = "Longitud total de redes en el sistema"; c.D792 = { f: "=$D$673", v: 5000 };
+  for (const r of [796, 815]) { c["B" + r] = ETQ_HORIZ_A07; c["D" + r] = { f: "=COUNT(L" + r + ":U" + r + ")", v: 6 }; c["K" + r] = 0; }
+  return Object.assign(c, cambios);
+}
+
+function libroA07({ meta = {}, filas = filasA07() } = {}) {
+  return libroAnexo({
+    filas,
+    meta: Object.assign({
+      SPEC_VERSION: "1.1", ANEXO_ID: "A07", PROGRAMAS: "P7", ESTADO_GLOBAL: "OK",
+      N_DATO: 9, N_DATO_OK: 9, N_ADVERTENCIA: 0, N_REVISAR: 0, GRUPOS_REVISAR: ""
+    }, meta)
+  });
+}
+function evaluarA07(opts) { return evaluarAnexo(interpretarSalida(libroA07(opts)), A07); }
+function planA07(ev, cambios) { return planificarCarga(ev, inspeccion(gesperA07(cambios)), A07); }
+
+test("A07: reconoce el anexo y P7; agrupa en RED y ACO, y la referencia general D792 no crea un grupo", () => {
+  assert.throws(() => evaluarAnexo(interpretarSalida(libroA07()), A04), /anexo A07, no al A04/);
+  const ev = evaluarA07();
+  assert.equal(ev.candidatos.length, 9);
+  const plan = planA07(ev);
+  assert.equal(plan.escrituras.length, 9, "incluido M807, cuyo rótulo termina en espacio");
+  assert.deepEqual(plan.escrituras.filter((e) => e.cambia).map((e) => [e.celda, e.actual, e.valor]), [["N800", 0.04525, 45.25]]);
+  assert.deepEqual(plan.grupos.map((x) => x.id), ["RED", "ACO"]);
+  assert.deepEqual(plan.referencias.map((r) => [r.fila.ID, r.grupo, r.celda, r.gesper, r.formula, r.coincide]), [
+    ["A07.RED.LONG_TOT", "RED", "D794", 200, true, false],
+    ["A07.GEN.LONG_RED_SIST", "GEN", "D792", 5000, true, true]
+  ]);
+  assert.equal(plan.grupos.filter((x) => x.id === "RED")[0].referencias.length, 1, "D792 no es de ninguna tarjeta: la pantalla la lista aparte");
+  assert.deepEqual(seleccionInicial(plan), { RED: false, ACO: true });
+});
+
+test("A07: cargar solo ACO escribe sus datos, deja la fila 800 como estaba y nunca escribe D794 ni D792", async () => {
+  const ev = evaluarA07();
+  const { stats, rangos } = instalarGesper(gesperA07());
+  const vista = await prepararCarga(ev, A07);
+  const r = await ejecutarCarga(ev, A07, vista, ["ACO"]);
+  assert.equal(r.escritos, 3);
+  assert.deepEqual([rangos.D795.values, rangos.M816.values, rangos.M822.values], [[[9]], [[4]], [[1500]]]);
+  assert.deepEqual(rangos.N800.values, [[0.04525]], "RED no se marcó: GESPER conserva su valor");
+  assert.deepEqual([rangos.D794.formulas, rangos.D792.formulas], [[["=0.2*1000"]], [["=$D$673"]]]);
+  assert.deepEqual(r.referencias.map((x) => x.celda), ["D794", "D792"], "las dos referencias se releen tras la carga");
+  assert.equal(stats.calculateCalls, 1);
+});
+
+test("A07: un control de serie en REVISAR (RED.CTRL_V6) bloquea solo esa serie; el resto de RED y ACO se puede cargar", () => {
+  // El anexo pasa a REVISAR la serie V6 del año 2; el panel también omite el
+  // año 3, que llegó en OK, porque su control la invalida (alcance "concepto").
+  const filas = filasA07().map((f) => (f.ID === "A07.RED.CTRL_V6" || f.ID === "A07.RED.V6.Y02" ? Object.assign({}, f, { ESTADO: "REVISAR" }) : f));
+  const ev = evaluarA07({ filas, meta: { ESTADO_GLOBAL: "REVISAR", N_DATO_OK: 8, N_REVISAR: 2, GRUPOS_REVISAR: "RED" } });
+  assert.equal(ev.cargaParcial, true);
+  assert.equal(ev.bloqueo, null);
+  assert.deepEqual(ev.omitidos.map((o) => o.fila.ID), ["A07.RED.V6.Y02", "A07.RED.V6.Y03"]);
+  assert.match(ev.omitidos[1].motivo, /A07\.RED\.CTRL_V6 está en REVISAR/);
+  const plan = planA07(ev);
+  assert.deepEqual(plan.escrituras.map((e) => e.celda), ["M798", "N798", "N800", "N809", "D795", "M816", "M822"]);
+  const red = plan.grupos.filter((x) => x.id === "RED")[0];
+  assert.deepEqual([red.revisar, red.omitidos.length, red.requiereConfirmacion], [true, 2, true]);
+  assert.deepEqual(seleccionInicial(plan), { RED: false, ACO: true });
+});
+
+test("A07: nunca escribe banderas (802, 817) ni horizontes (D796, K796, D815, K815); las acometidas avisan con la bandera 817", () => {
+  const horiz = [["A07.RED.HORIZ", "D796"], ["A07.RED.HORIZ.Y00", "K796"], ["A07.ACO.HORIZ", "D815"], ["A07.ACO.HORIZ.Y00", "K815"]];
+  const extra = horiz.map(([id, celda]) =>
+    fila({ ID: id, TIPO_FILA: "DATO", PROGRAMA: "P7", ANIO_IDX: /Y00$/.test(id) ? 0 : null, VALOR: 5, ESTADO: "OK", DESTINO_CELDA: celda, DESTINO_ETIQUETA: ETQ_HORIZ_A07 }))
+    .concat([fila({ ID: "A07.ACO.BANDERA.Y02", TIPO_FILA: "DATO", PROGRAMA: "P7", ANIO_IDX: 2, VALOR: 1, ESTADO: "OK", DESTINO_CELDA: "M817", DESTINO_ETIQUETA: ETQ_CONTEMPLADO })]);
+  const plan = planA07(evaluarA07({ filas: filasA07().concat(extra) }), { M817: "N/A" });
+  for (const [id, celda] of horiz) assert.match(motivoDe(plan, id), new RegExp(celda + " es una celda de horizonte"));
+  assert.match(motivoDe(plan, "A07.ACO.BANDERA.Y02"), /contemplado/);
+  // M816 y M822 dependen de la bandera 817; las filas de redes del mismo año (802 en NO) y D795 (no anual) no avisan.
+  assert.deepEqual(plan.avisos.filter((a) => a.tipo === "HORIZONTE").map((a) => a.fila.ID), ["A07.ACO.CANT.Y02", "A07.ACO.VOL.Y02"]);
+});
