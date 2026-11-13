@@ -7,12 +7,16 @@ import { H, ANCLAS } from "../config/cellMap.js";
 import { parseNum } from "../utils/format.js";
 import { state } from "./state.js";
 import {
-  pintaTodo, pintaDatos, pintaFormP9, pintaResultados, pintaResultadoDiag, errBox
+  pintaTodo, pintaDatos, pintaFormP9, pintaResultados, pintaResultadoDiag, pintaAnexos, pintaBotonCargaAnexo, errBox
 } from "./render.js";
 import {
   escribirRango, irA as excelIrA, buscarFilaPorEtiqueta, ejecutarDiagnostico
 } from "../services/excelService.js";
 import { cargarModelo } from "../domain/repositories/modeloRepository.js";
+import {
+  anexoPorId, leerArchivoAnexo, prepararCarga, ejecutarCarga
+} from "../domain/repositories/anexosRepository.js";
+import { seleccionInicial } from "../domain/anexos/salidaGesper.js";
 
 function $(id) { return document.getElementById(id); }
 function foot(msg, cls) { var f = $("foot"); f.textContent = msg; f.className = cls || ""; }
@@ -81,6 +85,76 @@ async function guardarP9() {
   } catch (e) { foot(e.message, "err"); }
 }
 
+/* ---------- CARGAR ANEXOS ---------- */
+function reiniciarAnexo(anexoId) {
+  var A = state.anexos;
+  if (anexoId) A.anexoId = anexoId;
+  A.fase = "inicio";
+  A.archivo = A.evaluacion = A.plan = A.resultado = A.error = null;
+  A.confirmado = false;
+  A.grupos = {};
+}
+
+/** Nuevo plan en pantalla: la confirmación y los grupos marcados se vuelven a pedir. */
+function ponerPlan(plan) {
+  var A = state.anexos;
+  A.plan = plan;
+  A.confirmado = false;
+  A.grupos = seleccionInicial(plan);
+}
+
+async function leerAnexo(file) {
+  var A = state.anexos;
+  var anexo = anexoPorId(A.anexoId);
+  reiniciarAnexo();
+  A.fase = "leyendo";
+  A.archivo = { nombre: file.name, tamano: file.size, modificado: file.lastModified ? new Date(file.lastModified) : null };
+  pintaAnexos();
+  foot("Leyendo " + file.name + "…");
+  try {
+    A.evaluacion = await leerArchivoAnexo(await file.arrayBuffer(), anexo);
+    ponerPlan(await prepararCarga(A.evaluacion, anexo));
+    A.fase = "vista";
+    foot("Anexo leído · " + A.plan.escrituras.length + " datos listos para cargar" +
+      (A.plan.omitidos.length ? " · " + A.plan.omitidos.length + " omitidos" : ""), A.plan.bloqueo ? "err" : "ok");
+  } catch (e) {
+    A.fase = "error";
+    A.error = e && e.message ? e.message : String(e);
+    foot("No pude leer el anexo: " + A.error, "err");
+  }
+  pintaAnexos();
+}
+
+async function cargarAnexo() {
+  var A = state.anexos;
+  var anexo = anexoPorId(A.anexoId);
+  if (!A.plan) return;
+  // Carga por grupo (A03): marcar un grupo es confirmarlo; se escriben solo los marcados.
+  var elegidos = Object.keys(A.grupos).filter(function (g) { return A.grupos[g]; });
+  if (anexo.cargaPorGrupo ? !elegidos.length : (A.plan.requiereConfirmacion && !A.confirmado)) return;
+  A.fase = "cargando";
+  A.error = null;
+  pintaAnexos();
+  foot("Escribiendo en GESPER…");
+  try {
+    // La confirmación queda atada al plan que el usuario vio: si GESPER cambió
+    // desde la vista previa, ejecutarCarga no escribe y devuelve el plan nuevo.
+    A.resultado = anexo.cargaPorGrupo
+      ? await ejecutarCarga(A.evaluacion, anexo, A.plan, elegidos)
+      : await ejecutarCarga(A.evaluacion, anexo, A.confirmado ? A.plan : null);
+    A.plan = A.resultado.plan;
+    A.fase = "resumen";
+    await refrescar();
+    foot("Anexo cargado · " + A.resultado.escritos + " valores escritos · " + A.resultado.cambiados + " cambiaron · recalculado", "ok");
+  } catch (e) {
+    A.fase = "vista";
+    A.error = e && e.message ? e.message : String(e);
+    if (e && e.planActual) ponerPlan(e.planActual);
+    foot("No se cargó el anexo: " + A.error, "err");
+  }
+  pintaAnexos();
+}
+
 function mostrar(id) {
   state.pantalla = id;
   var s = document.querySelectorAll(".scr");
@@ -117,6 +191,11 @@ document.addEventListener("click", function (ev) {
     return;
   }
 
+  var ax = t.closest ? t.closest("[data-anexo]") : null;
+  if (ax) { reiniciarAnexo(ax.getAttribute("data-anexo")); pintaAnexos(); return; }
+  if (t.id === "btnAnexoCancelar") { reiniciarAnexo(); pintaAnexos(); foot("Carga cancelada. No se escribió nada."); return; }
+  if (t.id === "btnCargarAnexo") { cargarAnexo(); return; }
+
   if (t.id === "btnRefresh") { refrescar(); return; }
   if (t.id === "btnGuardar") { guardarP9(); return; }
   if (t.id === "btnDescartar") { pintaFormP9(); foot("Cambios descartados."); return; }
@@ -136,10 +215,46 @@ document.addEventListener("click", function (ev) {
 
 document.addEventListener("input", function (ev) {
   var t = ev.target;
-  if (t.tagName === "INPUT") {
+  if (t.tagName === "INPUT" && t.type === "text") {
     if (t.closest(".fld")) t.closest(".fld").className = "fld dirty";
     else t.className = "dirty";
   }
+});
+
+document.addEventListener("change", function (ev) {
+  var t = ev.target;
+  if (t.id === "anexoArchivo" && t.files && t.files[0]) { var f = t.files[0]; t.value = ""; leerAnexo(f); return; }
+  if (t.id === "anxConfirma") {
+    state.anexos.confirmado = t.checked;
+    pintaBotonCargaAnexo();
+    return;
+  }
+  var grupo = t.getAttribute ? t.getAttribute("data-grupo") : null;
+  if (grupo) {
+    state.anexos.grupos[grupo] = t.checked;
+    var tarjeta = t.closest(".anx-grp");
+    if (tarjeta) tarjeta.classList.toggle("on", t.checked);
+    pintaBotonCargaAnexo(); // sin repintar: no se cierran los detalles abiertos
+  }
+});
+
+/* Arrastrar el archivo del anexo al panel: segunda vía que no depende del
+   explorador de archivos. Se acepta solo cuando la pantalla muestra el
+   selector (#anexoArchivo). preventDefault en todo el documento evita que el
+   panel navegue al archivo soltado y se pierda. */
+function hayDestinoDrop() { return state.pantalla === "anexos" && !!$("anexoArchivo"); }
+function marcaDrop(on) { var z = $("anxDrop"); if (z) z.classList.toggle("over", on); }
+document.addEventListener("dragover", function (ev) {
+  ev.preventDefault();
+  if (ev.dataTransfer) ev.dataTransfer.dropEffect = hayDestinoDrop() ? "copy" : "none";
+  marcaDrop(hayDestinoDrop());
+});
+document.addEventListener("dragleave", function (ev) { if (!ev.relatedTarget) marcaDrop(false); });
+document.addEventListener("drop", function (ev) {
+  ev.preventDefault();
+  marcaDrop(false);
+  var f = ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files[0];
+  if (f && hayDestinoDrop()) leerAnexo(f);
 });
 
 /* ---------- ARRANQUE ---------- */
@@ -148,5 +263,6 @@ Office.onReady(function (info) {
     document.body.innerHTML = '<div class="load">Este panel solo funciona dentro de Excel.</div>';
     return;
   }
+  pintaAnexos(); // no depende de la lectura del modelo: queda disponible aunque esta falle
   refrescar();
 });

@@ -146,6 +146,11 @@ button.act.primary{color:#fff;background:var(--gs);border-color:var(--gs)}
 button.act.primary:hover{background:var(--gs-dk);border-color:var(--gs-dk)}
 button.act.ghost{color:var(--mut);border-color:var(--border-strong)}
 button.act.ghost:hover{background:var(--sunk);border-color:var(--border-strong)}
+/* disabled: Diagnostico (mientras corre) y Cargar anexos (bloqueo/confirmacion pendiente) */
+button.act:disabled{opacity:.5;cursor:not-allowed}
+button.act:disabled:hover{background:none;border-color:var(--border-strong)}
+button.act:disabled:active{transform:none}
+button.act.primary:disabled:hover{background:var(--gs);border-color:var(--gs)}
 
 /* ---------- botones: variantes de tamano/layout ----------
    Fase 2F: consolidan estilos inline repetidos de render.js. .lg es el
