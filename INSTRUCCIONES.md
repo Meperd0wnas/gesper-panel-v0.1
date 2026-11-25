@@ -74,7 +74,7 @@ El servidor (`node server.js`) tiene que estar corriendo igual.
 | **Navegar** | Seis bloques en vez de 49 hojas. Muestra la hoja si está oculta y salta a la celda correcta. |
 | **Datos** | Los 19 programas con su B/C leído del libro, con semáforo. P.9 abre un formulario que **escribe de verdad** en el libro. |
 | **Resultados** | Tres vistas —hidráulica, comercial, financiera— con las cifras leídas de sus celdas. Cada tarjeta dice de qué celda sale. |
-| **Alternativas** | Las tres, lado a lado, con beneficio, costo, B/C, IPUF y veredicto. |
+| **Alternativas** | Las tres, lado a lado, con beneficio, costo, B/C, IPUF y veredicto. El botón **Descargar informe (HTML)** genera un documento con las gráficas explicadas, la comparación de las alternativas, los programas, el plan de gestión y el balance hídrico año a año. Se abre en cualquier navegador y desde ahí se imprime o se guarda como PDF. Si la descarga no arranca dentro de Excel, **Abrir en el navegador** lo muestra en el navegador del equipo (necesita el servidor de la ventana 1 abierto). |
 
 **Lo que el panel nunca hace:** escribir sobre una celda que contenga una fórmula. Antes de cada escritura la revisa y, si encuentra una fórmula, cancela y te avisa. Probalo si querés: cambiá en el mapa de celdas una dirección por una que tenga fórmula y vas a ver el rechazo.
 

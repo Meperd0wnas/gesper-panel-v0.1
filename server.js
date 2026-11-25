@@ -13,6 +13,7 @@ import https from "https";
 import fs from "fs";
 import path from "path";
 import os from "os";
+import crypto from "crypto";
 import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -59,6 +60,54 @@ async function getCerts() {
   }
 }
 
+/*
+ * Informes de resultados que el panel pide abrir en el navegador (boton
+ * "Abrir en el navegador" de la pantalla Alternativas). Viven solo en memoria:
+ * nunca se escriben a disco y se pierden al cerrar el servidor. Se guardan los
+ * ultimos MAX_INFORMES, cada uno bajo un id aleatorio.
+ */
+const INFORMES = new Map();
+const MAX_INFORMES = 10;
+const MAX_BYTES_INFORME = 20 * 1024 * 1024;
+
+function recibirInforme(req, res) {
+  // Exigir text/html obliga al navegador a pedir permiso (CORS) antes de que
+  // otra pagina pueda enviar algo aqui; este servidor no lo concede.
+  if (!String(req.headers["content-type"] || "").startsWith("text/html")) {
+    res.writeHead(415, { "Content-Type": "text/plain; charset=utf-8" }); res.end("Se espera text/html"); return;
+  }
+  const partes = [];
+  let total = 0;
+  req.on("data", (trozo) => {
+    total += trozo.length;
+    if (total > MAX_BYTES_INFORME) {
+      res.writeHead(413, { "Content-Type": "text/plain; charset=utf-8" }); res.end("Informe demasiado grande");
+      req.destroy();
+      return;
+    }
+    partes.push(trozo);
+  });
+  req.on("end", () => {
+    if (total > MAX_BYTES_INFORME) return;
+    const id = crypto.randomUUID();
+    INFORMES.set(id, Buffer.concat(partes));
+    while (INFORMES.size > MAX_INFORMES) INFORMES.delete(INFORMES.keys().next().value);
+    res.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+    res.end(JSON.stringify({ ruta: "/informe/" + id }));
+  });
+}
+
+function servirInforme(id, res) {
+  const html = INFORMES.get(id);
+  if (!html) {
+    res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
+    res.end("Este informe ya no esta disponible. Vuelve a generarlo desde el panel.");
+    return;
+  }
+  res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" });
+  res.end(html);
+}
+
 function serve(req, res) {
   let urlPath;
   try {
@@ -66,6 +115,8 @@ function serve(req, res) {
   } catch (e) {
     res.writeHead(400); res.end("URL invalida"); return;
   }
+  if (urlPath === "/informe" && req.method === "POST") { recibirInforme(req, res); return; }
+  if (urlPath.startsWith("/informe/")) { servirInforme(urlPath.slice("/informe/".length), res); return; }
   if (urlPath === "/") urlPath = "/src/taskpane.html";
 
   const filePath = path.normalize(path.join(ROOT, urlPath));

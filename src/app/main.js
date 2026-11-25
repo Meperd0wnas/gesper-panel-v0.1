@@ -17,16 +17,19 @@ import {
   anexoPorId, leerArchivoAnexo, prepararCarga, ejecutarCarga
 } from "../domain/repositories/anexosRepository.js";
 import { seleccionInicial } from "../domain/anexos/salidaGesper.js";
+import { generarInformeHtml, nombreArchivoInforme } from "./informe.js";
 
 function $(id) { return document.getElementById(id); }
 function foot(msg, cls) { var f = $("foot"); f.textContent = msg; f.className = cls || ""; }
 
+/** Lee el libro y repinta. Devuelve false si la lectura falló (el error ya queda en el pie). */
 async function refrescar() {
   var btn = $("btnRefresh");
   if (btn) btn.classList.add("spin");
   try {
     foot("Leyendo el libro…");
     var modelo = await cargarModelo();
+    state.modelo = modelo;
     state.hojasLibro = modelo.hojasLibro;
     state.estado = modelo.estado;
     state.totalProgramas = modelo.programas.length;
@@ -35,11 +38,95 @@ async function refrescar() {
     state.D = modelo.raw; // puente temporal -- ver informe de la Fase 2C/2D
     pintaTodo();
     foot("Leído · " + state.hojasLibro.length + " hojas · " + new Date().toLocaleTimeString("es-CO"), "ok");
+    return true;
   } catch (e) {
     foot("Error leyendo el libro: " + (e && e.message ? e.message : e), "err");
     $("s-estado").innerHTML = errBox(e);
+    return false;
   } finally {
     if (btn) btn.classList.remove("spin");
+  }
+}
+
+/* ---------- INFORME DE RESULTADOS ---------- */
+var logoInforme = null;     // data URI del logo de Dual; "" si no se pudo cargar
+var generandoInforme = false;
+
+async function cargarLogo() {
+  if (logoInforme !== null) return logoInforme;
+  try {
+    var r = await fetch("../assets/Dual-Logo.png");
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    var blob = await r.blob();
+    logoInforme = await new Promise(function (ok, mal) {
+      var fr = new FileReader();
+      fr.onload = function () { ok(fr.result); };
+      fr.onerror = mal;
+      fr.readAsDataURL(blob);
+    });
+  } catch (e) {
+    logoInforme = ""; // sin logo, el informe escribe el nombre de la marca
+  }
+  return logoInforme;
+}
+
+function descargarArchivo(nombre, contenido) {
+  var blob = new Blob([contenido], { type: "text/html;charset=utf-8" });
+  if (window.navigator && window.navigator.msSaveOrOpenBlob) { // Excel con EdgeHTML/IE (Office 2016/2019)
+    window.navigator.msSaveOrOpenBlob(blob, nombre);
+    return;
+  }
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement("a");
+  a.href = url;
+  a.download = nombre;
+  a.style.display = "none";
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 2000);
+}
+
+/**
+ * Segunda vía, por si Excel no deja descargar desde el panel (como ya pasó con
+ * el explorador de archivos, ver docs/DECISIONES.md §11): el servidor local
+ * guarda el informe en memoria y el panel lo abre en el navegador del sistema,
+ * desde donde se guarda o se imprime como PDF.
+ */
+async function abrirEnNavegador(html) {
+  var r;
+  try {
+    r = await fetch("/informe", { method: "POST", headers: { "Content-Type": "text/html; charset=utf-8" }, body: html });
+  } catch (e) {
+    throw new Error("no hay conexión con el servidor local (node server.js).");
+  }
+  if (!r.ok) throw new Error("el servidor local no recibió el informe (HTTP " + r.status + "). Reinicia node server.js.");
+  var url = new URL((await r.json()).ruta, location.href).href;
+  if (Office.context.ui && Office.context.ui.openBrowserWindow) Office.context.ui.openBrowserWindow(url);
+  else window.open(url, "_blank");
+}
+
+/** @param {"descargar"|"navegador"} modo */
+async function generarInforme(modo) {
+  if (generandoInforme) return;
+  generandoInforme = true;
+  try {
+    // Se relee el libro: el informe muestra lo que tiene Excel ahora, no la última lectura.
+    if (!(await refrescar())) return;
+    foot("Generando el informe…");
+    var fecha = new Date();
+    var html = generarInformeHtml(state.modelo, { fecha: fecha, logo: await cargarLogo() });
+    var nombre = nombreArchivoInforme(state.modelo.estado.empresa, fecha);
+    if (modo === "navegador") {
+      await abrirEnNavegador(html);
+      foot("Informe abierto en el navegador. Desde ahí se guarda o se imprime como PDF.", "ok");
+    } else {
+      descargarArchivo(nombre, html);
+      foot("Informe generado: " + nombre + ". Si no aparece en Descargas, usa «Abrir en el navegador».", "ok");
+    }
+  } catch (e) {
+    foot("No se pudo generar el informe: " + (e && e.message ? e.message : e), "err");
+  } finally {
+    generandoInforme = false;
   }
 }
 
@@ -197,6 +284,8 @@ document.addEventListener("click", function (ev) {
   if (t.id === "btnCargarAnexo") { cargarAnexo(); return; }
 
   if (t.id === "btnRefresh") { refrescar(); return; }
+  if (t.id === "btnInforme") { generarInforme("descargar"); return; }
+  if (t.id === "btnInformeNav") { generarInforme("navegador"); return; }
   if (t.id === "btnGuardar") { guardarP9(); return; }
   if (t.id === "btnDescartar") { pintaFormP9(); foot("Cambios descartados."); return; }
 

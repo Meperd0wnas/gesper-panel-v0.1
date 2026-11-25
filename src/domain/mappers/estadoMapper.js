@@ -42,6 +42,12 @@ export function mapEstado(raw) {
 
   var programasSinDatos = mapProgramas(raw).filter(function (p) { return p.estado === "sin_datos"; });
 
+  // Nombre (X27:X29) y estado (Y27:Y29) de cada control, para el informe.
+  var controles = ct.map(function (estadoControl, i) {
+    var nombre = raw.ctNom && raw.ctNom.t[i] ? texto(raw.ctNom.t[i][0]) : "";
+    return { nombre: nombre || "Control " + (i + 1), estado: texto(estadoControl) };
+  });
+
   return {
     empresa: raw.empresa ? texto(raw.empresa.t[0][0]) : "",
     horizonte: horizonte,
@@ -49,6 +55,7 @@ export function mapEstado(raw) {
     metaIPUF: raw.meta ? num(raw.meta.v[0][0]) : null,
     integridad: integridad,
     controlesIntegridad: ct,
+    controles: controles,
     wacc: { real: waccReal, corriente: waccCorriente },
     alternativaDesfasada: desfase,
     programasSinDatos: programasSinDatos,

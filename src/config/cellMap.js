@@ -42,6 +42,20 @@ export const LECTURAS = [
   ["ipuf1", H.ALT, "J20:V20"],
   ["ianc2", H.ALT, "J59:V59"],
   ["ipuf2", H.ALT, "J62:V62"],
+  // Informe de resultados (app/informe.js). Bloques de balance hídrico e
+  // indicadores de cada alternativa: rótulo en H, unidad en I, años en J:V.
+  // Son las mismas filas que grafica cada "INDICADORES ALTERNATIVA No.X" de
+  // la hoja (IANC, ISUF, ICUF e IPUF). El mapper ubica cada fila por su
+  // rótulo, no por su posición.
+  ["altNums", H.ALT, "I6:AA6"],   // número de programa de cada columna de banderas (1..19)
+  ["alt1bal", H.ALT, "H10:V20"],
+  ["alt2bal", H.ALT, "H52:V62"],
+  ["alt3bal", H.ALT, "H94:V104"],
+  ["alt2nota", H.ALT, "J45"],     // "EVALUADA EN EVOLUCIÓN DEL BALANCE HÍDRICO Y FINANCIERAMENTE"
+  ["plan", H.ALT, "A28:E35"],     // plan de gestión de pérdidas: requisitos, programas, costo, beneficio, B/C, volumen
+  ["combos", H.ALT, "A37:E51"],   // combinaciones óptimas: programas, B/C, vol. recuperado, costo, beneficio
+  ["categ", H.ALT, "A55:D65"],    // programas por criterio: obligatorios, mayor volumen, mayor B/C
+  ["ctNom", H.ALT, "X27:X29"],    // nombre de los 3 controles de integridad (sus estados están en ct005)
   ["par", H.PAR, "C4:C18"],
   ["parE", H.PAR, "E8:E9"],
   ["grad", H.PAR, "C33"],
