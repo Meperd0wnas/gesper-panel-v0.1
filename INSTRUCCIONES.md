@@ -1,5 +1,7 @@
 # Panel GESPER v0.1 — cómo levantarlo
 
+> **¿Solo vas a usar el panel?** No necesitás nada de esta guía. Entrá a <https://meperd0wnas.github.io/gesper-panel-v0.1/>, descargá el instalador y seguí los cuatro pasos de esa página: sin Node.js, sin certificado y sin ventanas abiertas. Esta guía es para levantar el panel desde el código.
+
 Esto es un complemento de Excel de verdad: lee y escribe tu libro. No es una maqueta.
 
 > **Antes de nada: trabajá sobre una copia del `.xlsm`.** El panel escribe en celdas reales cuando pulsás Guardar. Copiá `CASO_Bucaramanga_plantilla_v2.5.xlsm` y probá sobre la copia.
@@ -46,7 +48,7 @@ Vas a ver `Panel GESPER — servidor local activo`. **Dejá esa ventana abierta.
 npm run instalar-en-excel
 ```
 
-Esto abre Excel ya con el complemento registrado. Abrí tu archivo `.xlsm` y buscá el botón **Panel GESPER** en la pestaña **Inicio** de la cinta.
+Esto abre Excel ya con el complemento registrado. Abrí tu archivo `.xlsm` y buscá el botón **Panel GESPER (desarrollo)** en la pestaña **Inicio** de la cinta.
 
 Para cerrar todo: `Ctrl + C` en la ventana del servidor, y `npm run quitar-de-excel`.
 
@@ -60,7 +62,7 @@ A veces `office-addin-debugging` falla según la versión de Office. Método man
 2. Abrí Excel → **Archivo** → **Opciones** → **Centro de confianza** → **Configuración del Centro de confianza** → **Catálogos de complementos**.
 3. Pegá esa ruta en *Dirección URL del catálogo*, pulsá **Agregar catálogo**, marcá **Mostrar en el menú**, aceptá.
 4. Cerrá Excel y volvé a abrirlo.
-5. **Insertar** → **Mis complementos** → pestaña **CARPETA COMPARTIDA** → elegí *Panel GESPER* → **Agregar**.
+5. **Insertar** → **Mis complementos** → pestaña **CARPETA COMPARTIDA** → elegí *Panel GESPER (desarrollo)* → **Agregar**.
 
 El servidor (`node server.js`) tiene que estar corriendo igual.
 

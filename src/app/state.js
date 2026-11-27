@@ -10,6 +10,7 @@ export const state = {
   resultadosFinancieros: null,  // ResultadosFinancieros ya mapeado, consumido por la pantalla Resultados (Fase 2D)
   modelo: null,        // ModeloGesper completo de la última lectura, para el informe de resultados (app/informe.js)
   hojasLibro: [],      // nombres de hojas presentes en el libro
+  servidorLocal: false, // el panel lo sirve node server.js (desarrollo), no GitHub Pages: habilita «Abrir en el navegador» (docs/DECISIONES.md §13)
   pantalla: "estado",  // pantalla activa: estado | navegar | datos | anexos | result | alt | diag
   subResult: "hid",    // subpestaña activa dentro de Resultados
   vistaDatos: "lista", // lista | p9 (formulario de un programa)

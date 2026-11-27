@@ -121,7 +121,7 @@ async function generarInforme(modo) {
       foot("Informe abierto en el navegador. Desde ahí se guarda o se imprime como PDF.", "ok");
     } else {
       descargarArchivo(nombre, html);
-      foot("Informe generado: " + nombre + ". Si no aparece en Descargas, usa «Abrir en el navegador».", "ok");
+      foot("Informe generado: " + nombre + "." + (state.servidorLocal ? " Si no aparece en Descargas, usa «Abrir en el navegador»." : ""), "ok");
     }
   } catch (e) {
     foot("No se pudo generar el informe: " + (e && e.message ? e.message : e), "err");
@@ -352,6 +352,7 @@ Office.onReady(function (info) {
     document.body.innerHTML = '<div class="load">Este panel solo funciona dentro de Excel.</div>';
     return;
   }
+  state.servidorLocal = location.hostname === "localhost" || location.hostname === "127.0.0.1";
   pintaAnexos(); // no depende de la lectura del modelo: queda disponible aunque esta falle
   refrescar();
 });

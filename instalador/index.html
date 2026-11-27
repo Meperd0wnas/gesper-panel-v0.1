@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Panel GESPER</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="assets/icon-32.png">
+<link rel="stylesheet" href="src/styles/tokens.css">
+<!-- Plantilla: instalador/index.html. La rellena scripts/empaquetar.js ({{VERSION}}, {{ZIP}}, {{URL}}). -->
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--canvas);color:var(--ink);font-family:var(--font-sans);font-size:15px;line-height:1.55}
+  .barra{height:4px;background:linear-gradient(90deg,var(--primary),var(--brand))}
+  main{max-width:640px;margin:0 auto;padding:32px 16px 48px}
+  .marca{display:flex;align-items:center;gap:10px;margin-bottom:24px}
+  .marca img{width:32px;height:32px}
+  .marca b{font-size:18px;letter-spacing:-.01em}
+  .marca span{margin-left:auto;font-family:var(--font-mono);font-size:12px;color:var(--muted)}
+  h1{font-size:24px;line-height:1.25;margin:0 0 8px;letter-spacing:-.01em}
+  p{margin:0 0 12px;color:var(--ink2)}
+  .tarjeta{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:20px;margin:20px 0}
+  .descargar{display:inline-block;background:var(--primary);color:#fff;text-decoration:none;font-weight:600;padding:11px 18px;border-radius:6px}
+  .descargar:hover{background:var(--primary-dark)}
+  .descargar:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+  .nota{font-size:13px;color:var(--muted);margin-top:10px}
+  h2{font-size:16px;margin:0 0 10px}
+  ol,ul{margin:0;padding-left:22px;color:var(--ink2)}
+  li{margin-bottom:6px}
+  code{font-family:var(--font-mono);font-size:13px;background:var(--sunk);padding:1px 4px;border-radius:3px;word-break:break-all}
+</style>
+</head>
+<body>
+<div class="barra"></div>
+<main>
+  <div class="marca">
+    <img src="assets/logo-mark.png" alt="" width="32" height="32">
+    <b>GESPER</b>
+    <span>v{{VERSION}}</span>
+  </div>
+
+  <h1>Panel GESPER para Excel</h1>
+  <p>Complemento de Excel para el modelo GESPER de gestión de pérdidas de agua. Muestra el estado del modelo, navega entre sus hojas, carga anexos y genera el informe de resultados. Excel sigue haciendo todos los cálculos.</p>
+
+  <div class="tarjeta">
+    <a class="descargar" href="{{ZIP}}" download>Descargar el instalador</a>
+    <p class="nota">Windows con Excel de escritorio (Microsoft 365, Office 2021 u Office 2019) y conexión a internet. No hace falta Node.js ni permisos de administrador.</p>
+  </div>
+
+  <div class="tarjeta">
+    <h2>Cómo instalarlo</h2>
+    <ol>
+      <li>Descomprime el ZIP: clic derecho sobre el archivo, <b>Extraer todo…</b></li>
+      <li>En la carpeta descomprimida, doble clic en <b>Instalar Panel GESPER.cmd</b>. Si Windows avisa que no puede comprobar el editor, pulsa <b>Ejecutar</b> (o <b>Más información</b> y <b>Ejecutar de todas formas</b>).</li>
+      <li>Cierra todas las ventanas de Excel y vuelve a abrirlo.</li>
+      <li>Abre tu libro GESPER (.xlsm). En la ficha <b>Inicio</b> aparece el botón <b>Panel GESPER</b>.</li>
+    </ol>
+  </div>
+
+  <div class="tarjeta">
+    <h2>Bueno saber</h2>
+    <ul>
+      <li>Trabaja sobre una copia del .xlsm: el panel escribe en celdas reales cuando guardas un formulario o cargas un anexo, nunca sobre una celda con fórmula.</li>
+      <li>Las mejoras del panel llegan solas al volver a abrirlo. Solo hay que reinstalar si te envían un instalador nuevo.</li>
+      <li>Para quitarlo: <b>Desinstalar Panel GESPER.cmd</b>, en la misma carpeta del instalador.</li>
+      <li>Para TI: el manifiesto para el centro de administración de Microsoft 365 está en <code>{{URL}}manifest.xml</code>.</li>
+    </ul>
+  </div>
+</main>
+</body>
+</html>

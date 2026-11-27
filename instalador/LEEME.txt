@@ -1,0 +1,70 @@
+PANEL GESPER {{VERSION}} — INSTALACIÓN
+=======================================
+
+El Panel GESPER es un complemento de Excel para el modelo GESPER de gestión
+de pérdidas de agua: muestra el estado del modelo, navega entre sus hojas,
+carga anexos y genera el informe de resultados. Excel sigue haciendo todos
+los cálculos.
+
+
+REQUISITOS
+----------
+- Windows con Excel de escritorio (Microsoft 365, Office 2021 u Office 2019).
+- Conexión a internet. El panel se carga desde:
+  {{URL}}
+
+No hace falta instalar Node.js, certificados ni dejar ninguna ventana
+abierta. No pide permisos de administrador: solo afecta al usuario de
+Windows que lo instala.
+
+
+INSTALAR
+--------
+1. Descomprime este ZIP: clic derecho sobre el archivo > «Extraer todo…».
+2. En la carpeta descomprimida, haz doble clic en «Instalar Panel GESPER.cmd».
+   Si Windows avisa que «no se puede comprobar el editor», pulsa «Ejecutar».
+   Si muestra «Windows protegió su PC», pulsa «Más información» y luego
+   «Ejecutar de todas formas».
+3. Cierra todas las ventanas de Excel y vuelve a abrirlo.
+4. Abre tu libro GESPER (.xlsm). En la ficha Inicio de la cinta aparece el
+   botón «Panel GESPER».
+
+Después de instalar puedes borrar la carpeta descomprimida y el ZIP.
+
+
+ANTES DE USARLO
+---------------
+Trabaja sobre una copia del .xlsm. El panel escribe en celdas reales cuando
+guardas un formulario o cargas un anexo (nunca sobre una celda con fórmula).
+
+
+ACTUALIZACIONES
+---------------
+Las mejoras del panel llegan solas: basta con cerrar y volver a abrir el
+panel. Solo hay que volver a ejecutar el instalador si te envían uno nuevo.
+
+
+DESINSTALAR
+-----------
+Doble clic en «Desinstalar Panel GESPER.cmd» y vuelve a abrir Excel.
+
+
+SI ALGO FALLA
+-------------
+No aparece el botón «Panel GESPER»
+  Comprueba que cerraste todas las ventanas de Excel antes de volver a
+  abrirlo. Si sigue sin aparecer, vuelve a ejecutar el instalador y lee el
+  mensaje que muestra.
+
+El panel sale en blanco o dice que no se pudo cargar
+  Falta conexión a internet, o la red de la empresa bloquea el sitio del
+  panel. Abre esta dirección en el navegador:
+  {{URL}}src/taskpane.html
+  Si ves «Este panel solo funciona dentro de Excel», la conexión está bien.
+  Si no carga, pide a TI que permita ese sitio.
+
+El instalador dice que Windows no dejó registrar el panel
+  Una política de la empresa lo impide. TI puede instalarlo para todos desde
+  el centro de administración de Microsoft 365 (Aplicaciones integradas >
+  Cargar aplicaciones personalizadas) con el archivo manifest.xml de esta
+  carpeta.

@@ -74,7 +74,7 @@ Sirve el panel en `https://localhost:3000/src/taskpane.html`. Déjala abierta.
 npm run instalar-en-excel
 ```
 
-Abre Excel con el complemento ya registrado (sideloading vía `office-addin-debugging`). Abre tu `.xlsm` y busca el botón **Panel GESPER** en la pestaña Inicio de la cinta.
+Abre Excel con el complemento ya registrado (sideloading vía `office-addin-debugging`). Abre tu `.xlsm` y busca el botón **Panel GESPER (desarrollo)** en la pestaña Inicio de la cinta.
 
 Para detener: `Ctrl+C` en la terminal del servidor, y `npm run quitar-de-excel`.
 
@@ -84,7 +84,18 @@ Si el sideloading automático falla (pasa según la versión de Office), `INSTRU
 
 ## Cómo construir
 
-No hay paso de build: es HTML + CSS + JavaScript (módulos ES nativos) servido directamente. `npm start` es, a la vez, "build" y "run" — no hay artefacto intermedio que generar.
+No hay paso de build: es HTML + CSS + JavaScript (módulos ES nativos) servido directamente. `npm start` es, a la vez, "build" y "run" — no hay artefacto intermedio que generar. `npm run empaquetar` tampoco compila: copia `src/` y `assets/` tal cual y genera el manifiesto de producción y el instalador (ver la sección siguiente).
+
+## Publicación para usuarios finales
+
+Los usuarios finales no instalan Node ni el certificado: el panel se publica en GitHub Pages y cada uno lo instala con doble clic.
+
+- **Publicar.** Cada push a `main` corre las pruebas, ejecuta `npm run empaquetar` y publica `dist/sitio` en `https://meperd0wnas.github.io/gesper-panel-v0.1/` (`.github/workflows/publicar-panel.yml`). Solo eso llega al sitio: `src/`, `assets/`, el manifiesto de producción, el instalador y la página de descarga. Requisito, una sola vez: *Settings → Pages → Build and deployment → Source: GitHub Actions*.
+- **Repartir.** Comparte `https://meperd0wnas.github.io/gesper-panel-v0.1/`: tiene el botón para descargar `Panel-GESPER-instalador.zip` y los pasos. El ZIP trae `Instalar Panel GESPER.cmd`, `Desinstalar Panel GESPER.cmd`, el manifiesto y un `LEEME.txt`. El instalador no pide administrador.
+- **Actualizar.** Lo que cambia en `src/` llega solo a los usuarios al volver a abrir el panel. Solo hay que repartir un instalador nuevo si cambia `manifest.xml` (cinta, permisos, URL); en ese caso sube `version` en `package.json`.
+- **Probar en local.** `npm run empaquetar` deja en `dist/sitio/` lo mismo que se publicaría.
+
+La URL y el Id del manifiesto de producción están en `package.json` → `publicacion`. El Id es distinto del de `manifest.xml`, así que el panel publicado y el de desarrollo pueden estar instalados a la vez. Para distinguirlos, los rótulos de `manifest.xml` llevan « (desarrollo)», y el empaquetado lo quita. Detalles y alternativas descartadas: `docs/DECISIONES.md` §13.
 
 ## Pruebas
 
@@ -110,6 +121,9 @@ gesper-panel-v0.1/
     app/                     # estado, renderizado, orquestación
     utils/format.js          # funciones puras
   test/                      # pruebas con node:test
+  scripts/                   # empaquetado para publicar (npm run empaquetar)
+  instalador/                # plantillas del instalador y de la página de descarga
+  .github/workflows/         # publicación en GitHub Pages
   assets/                    # iconos del complemento
   docs/                      # documentación del modelo GESPER y decisiones técnicas
   CASO_Bucaramanga_plantilla_v2.5.xlsm   # caso de referencia (ver nota de privacidad abajo)
