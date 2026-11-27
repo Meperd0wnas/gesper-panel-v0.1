@@ -13,7 +13,7 @@ import { leerLibro } from "../../services/excelService.js";
 import { mapEstado } from "../mappers/estadoMapper.js";
 import { mapProgramas } from "../mappers/programasMapper.js";
 import { mapResultadosHidraulicos, mapResultadosFinancieros } from "../mappers/resultadosMapper.js";
-import { mapAlternativas } from "../mappers/alternativasMapper.js";
+import { mapAlternativas, mapDetalleAlternativas, mapPlanGestion } from "../mappers/alternativasMapper.js";
 
 /**
  * Lee el libro una sola vez y devuelve el modelo completo ya mapeado.
@@ -30,6 +30,10 @@ export async function cargarModelo() {
     resultadosHidraulicos: mapResultadosHidraulicos(datos),
     resultadosFinancieros: mapResultadosFinancieros(datos),
     alternativas: mapAlternativas(datos),
+    // Para el informe de resultados (app/informe.js): series por año, programas
+    // marcados y veredicto de cada alternativa, y el plan de gestión de pérdidas.
+    detalleAlternativas: mapDetalleAlternativas(datos),
+    planGestion: mapPlanGestion(datos),
     hojasLibro: hojasLibro,
     leidoEn: new Date(),
     // Puente temporal, fuera del contrato ModeloGesper documentado en

@@ -102,3 +102,15 @@ test("mapEstado no lanza y devuelve valores por defecto cuando raw viene vacío"
   assert.deepEqual(out.wacc, { real: null, corriente: null });
   assert.deepEqual(out.programasSinDatos, []);
 });
+
+test("mapEstado empareja el nombre de cada control de integridad con su estado", () => {
+  var raw = {
+    ct005: columna(["OK", "OK", "SIN EJECUTAR"]),
+    ctNom: columna(["Tabla PROGRAMAS (clave)", "Tabla VOL_REC (clave)", ""])
+  };
+  assert.deepEqual(mapEstado(raw).controles, [
+    { nombre: "Tabla PROGRAMAS (clave)", estado: "OK" },
+    { nombre: "Tabla VOL_REC (clave)", estado: "OK" },
+    { nombre: "Control 3", estado: "SIN EJECUTAR" }
+  ]);
+});

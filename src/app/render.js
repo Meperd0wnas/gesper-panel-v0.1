@@ -342,7 +342,13 @@ export function pintaAlt() {
     return '<span class="' + (x >= 1 ? "text-ok" : "text-critical") + ' value-emphasis">' + fmt(x, 2) + '</span>';
   }
 
-  var h = '<div class="sec">Comparación</div><table class="cmp"><thead><tr><th></th>' +
+  // Informe descargable (app/informe.js; el botón lo atiende main.js:generarInforme).
+  var h = '<div class="card accent"><h4>Informe de resultados</h4>' +
+    '<p>Un documento HTML con las gráficas explicadas, la comparación de las tres alternativas, los programas y el balance hídrico. Se genera con lo que tiene el libro en este momento.</p>' +
+    '<div class="btn-row"><button class="act primary lg grow" id="btnInforme">Descargar informe (HTML)</button>' +
+    '<button class="act ghost lg" id="btnInformeNav" title="Si la descarga no arranca dentro de Excel">Abrir en el navegador</button></div></div>';
+
+  h += '<div class="sec">Comparación</div><table class="cmp"><thead><tr><th></th>' +
     '<th class="c">Alt. 1</th><th class="c">Alt. 2</th><th class="c">Alt. 3</th></tr></thead><tbody>';
   h += '<tr><td class="k">Beneficio</td><td class="c">' + fmtMM(A1.ben) + '</td><td class="c">' + fmtMM(A2.ben) + '</td><td class="c">' + fmtMM(A3.ben) + '</td></tr>';
   h += '<tr><td class="k">Costo</td><td class="c">' + fmtMM(A1.cos) + '</td><td class="c">' + fmtMM(A2.cos) + '</td><td class="c">' + fmtMM(A3.cos) + '</td></tr>';

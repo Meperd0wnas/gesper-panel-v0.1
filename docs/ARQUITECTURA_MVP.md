@@ -272,12 +272,36 @@ Esta es la frontera de acoplamiento: todo lo que está a la izquierda de estos c
  */
 
 /**
+ * Agregado el 2026-11-24 para el informe de resultados (app/informe.js).
+ * Series del bloque de balance hídrico de cada alternativa (Alternativas!H10:V20,
+ * H52:V62, H94:V104), ubicadas por el rótulo de la columna H.
+ * @typedef {Object} DetalleAlternativa
+ * @property {1|2|3} id
+ * @property {number[]} programas       // con "SI" en la fila de banderas (7, 49, 91)
+ * @property {string} veredicto         // texto de T22/T63/T105
+ * @property {number|null} ipufPromedio // del 4.º año al final, el tramo del veredicto
+ * @property {string} nota              // J45 para la Alternativa 2
+ * @property {Object<string,(number|null)[]|null>} series  // produccion, facturacion, usuarios, vrecProduccion, vrecFacturacion, produccionConProgramas, facturacionConProgramas, ianc, isuf, icuf, ipuf
+ */
+
+/**
+ * Plan de gestión de pérdidas (Alternativas!A28:E35), combinaciones óptimas
+ * (A37:E51) y programas por criterio (A55:D65).
+ * @typedef {Object} PlanGestion
+ * @property {{descripcion: string, requisitoEsencial: string[], programasTexto: string, programas: number[], costo: number|null, beneficio: number|null, bc: number|null, volumenRecuperado: number|null}} plan
+ * @property {{programasTexto: string, programas: number[], bc: number|null, volumenRecuperado: number|null, costo: number|null, beneficio: number|null}[]} combinaciones
+ * @property {{criterios: string[], grupos: {nombre: string, columnas: string[][]}[]}} clasificacion
+ */
+
+/**
  * @typedef {Object} ModeloGesper
- * @property {EstadoModelo} estado
+ * @property {EstadoModelo} estado        // incluye controles: {nombre, estado}[] (X27:Y29), agregado para el informe
  * @property {ProgramaResumen[]} programas
  * @property {ResultadosHidraulicos} resultadosHidraulicos
  * @property {ResultadosFinancieros} resultadosFinancieros
  * @property {Alternativa[]} alternativas
+ * @property {{anios: string[], inicioPromedio: number, alternativas: DetalleAlternativa[]}} detalleAlternativas
+ * @property {PlanGestion} planGestion
  * @property {string[]} hojasLibro
  * @property {Date} leidoEn
  */

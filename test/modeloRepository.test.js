@@ -72,6 +72,8 @@ test("cargarModelo lee el libro en una sola ejecución de Excel.run y compone lo
   assert.equal(modelo.programas[0].numero, 9);
   assert.equal(modelo.estado.empresa, "");
   assert.deepEqual(modelo.alternativas.map((a) => a.id), [1, 2, 3]);
+  assert.deepEqual(modelo.detalleAlternativas.alternativas.map((a) => a.id), [1, 2, 3]);
+  assert.ok(modelo.planGestion.plan, "incluye el plan de gestión para el informe");
   assert.ok(modelo.leidoEn instanceof Date);
   assert.deepEqual(modelo.hojasLibro.slice().sort(), ["Alternativas", "PARÁMETROS"]);
 });

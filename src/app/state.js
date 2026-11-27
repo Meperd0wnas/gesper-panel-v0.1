@@ -8,6 +8,7 @@ export const state = {
   totalProgramas: 0,   // ModeloGesper.programas.length -- ver "requiere ajuste del contrato" en el informe de la Fase 2C
   resultadosHidraulicos: null,  // ResultadosHidraulicos ya mapeado, consumido por la pantalla Resultados (Fase 2D)
   resultadosFinancieros: null,  // ResultadosFinancieros ya mapeado, consumido por la pantalla Resultados (Fase 2D)
+  modelo: null,        // ModeloGesper completo de la última lectura, para el informe de resultados (app/informe.js)
   hojasLibro: [],      // nombres de hojas presentes en el libro
   pantalla: "estado",  // pantalla activa: estado | navegar | datos | anexos | result | alt | diag
   subResult: "hid",    // subpestaña activa dentro de Resultados
