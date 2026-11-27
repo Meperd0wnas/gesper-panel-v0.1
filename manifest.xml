@@ -10,7 +10,7 @@
   <Version>0.1.0</Version>
   <ProviderName>GESPER</ProviderName>
   <DefaultLocale>es-CO</DefaultLocale>
-  <DisplayName DefaultValue="Panel GESPER"/>
+  <DisplayName DefaultValue="Panel GESPER (desarrollo)"/>
   <Description DefaultValue="Capa de interfaz para el modelo GESPER de gestion de perdidas de agua. Navegacion, estado del modelo, formularios de entrada y resultados."/>
 
   <IconUrl DefaultValue="https://localhost:3000/assets/icon-64.png"/>
@@ -90,13 +90,13 @@
         <bt:Url id="GetStarted.LearnMoreUrl" DefaultValue="https://localhost:3000/src/taskpane.html"/>
       </bt:Urls>
       <bt:ShortStrings>
-        <bt:String id="Group.Label" DefaultValue="GESPER"/>
-        <bt:String id="Button.Label" DefaultValue="Panel GESPER"/>
-        <bt:String id="GetStarted.Title" DefaultValue="Panel GESPER instalado"/>
+        <bt:String id="Group.Label" DefaultValue="GESPER (desarrollo)"/>
+        <bt:String id="Button.Label" DefaultValue="Panel GESPER (desarrollo)"/>
+        <bt:String id="GetStarted.Title" DefaultValue="Panel GESPER (desarrollo) instalado"/>
       </bt:ShortStrings>
       <bt:LongStrings>
         <bt:String id="Button.Tooltip" DefaultValue="Abre el panel de GESPER: estado del modelo, navegacion, entrada de datos y resultados."/>
-        <bt:String id="GetStarted.Description" DefaultValue="Busca el boton Panel GESPER en la pestana Inicio de la cinta."/>
+        <bt:String id="GetStarted.Description" DefaultValue="Busca el boton Panel GESPER (desarrollo) en la pestana Inicio de la cinta."/>
       </bt:LongStrings>
     </Resources>
   </VersionOverrides>

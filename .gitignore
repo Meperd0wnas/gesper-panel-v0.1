@@ -1,6 +1,9 @@
 # Dependencias
 node_modules/
 
+# Lo que genera npm run empaquetar (se publica desde GitHub Actions, no se versiona)
+dist/
+
 # Certificados de desarrollo (se instalan localmente con office-addin-dev-certs;
 # nunca deben viajar en el repositorio)
 *.pem

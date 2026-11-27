@@ -45,7 +45,10 @@ npm start                   # servir el panel (deja la terminal abierta)
 npm run instalar-en-excel   # abrir Excel con el complemento cargado
 npm run quitar-de-excel     # desinstalar el sideload
 npm test                    # node:test sobre /test
+npm run empaquetar          # dist/sitio: lo que publica GitHub Pages, con el instalador
 ```
+
+Publicación (ver `docs/DECISIONES.md` §13): cada push a `main` publica el panel en GitHub Pages (`.github/workflows/publicar-panel.yml`). La URL y el Id del manifiesto de producción viven en `package.json` → `publicacion`; las plantillas del instalador, en `instalador/` (los `.cmd`, solo ASCII). `npm run empaquetar` no es un bundler: copia `src/` y `assets/` tal cual. Todo lo que está en `src/` se publica, así que nada de datos de clientes ahí.
 
 No hay paso de build ni linter configurado todavía. No introduzcas un bundler (webpack/vite) sin que el usuario lo pida explícitamente — es una decisión de arquitectura tomada a propósito (ver `docs/DECISIONES.md` §1).
 

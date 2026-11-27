@@ -343,10 +343,12 @@ export function pintaAlt() {
   }
 
   // Informe descargable (app/informe.js; el botón lo atiende main.js:generarInforme).
+  // «Abrir en el navegador» necesita POST /informe de server.js: no existe en la versión publicada.
   var h = '<div class="card accent"><h4>Informe de resultados</h4>' +
     '<p>Un documento HTML con las gráficas explicadas, la comparación de las tres alternativas, los programas y el balance hídrico. Se genera con lo que tiene el libro en este momento.</p>' +
     '<div class="btn-row"><button class="act primary lg grow" id="btnInforme">Descargar informe (HTML)</button>' +
-    '<button class="act ghost lg" id="btnInformeNav" title="Si la descarga no arranca dentro de Excel">Abrir en el navegador</button></div></div>';
+    (state.servidorLocal ? '<button class="act ghost lg" id="btnInformeNav" title="Si la descarga no arranca dentro de Excel">Abrir en el navegador</button>' : '') +
+    '</div></div>';
 
   h += '<div class="sec">Comparación</div><table class="cmp"><thead><tr><th></th>' +
     '<th class="c">Alt. 1</th><th class="c">Alt. 2</th><th class="c">Alt. 3</th></tr></thead><tbody>';
